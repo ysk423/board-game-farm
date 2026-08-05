@@ -34,4 +34,4 @@ export interface RoomSummary {
   createdAt: Timestamp;
 }
 
-export type JoinRoomResult = { ok: true; color: 'gote' } | { ok: false; reason: 'not-found' | 'full' };
+export type JoinRoomResult = { ok: true; color: Player } | { ok: false; reason: 'not-found' | 'full' };

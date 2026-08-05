@@ -36,6 +36,33 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   createTitle.textContent = 'ルームを作成する';
   createSection.appendChild(createTitle);
 
+  let creatorColor: StoneColor = 'black';
+
+  const colorRow = document.createElement('div');
+  colorRow.className = 'online-panel__buttons';
+
+  const blackToggle = document.createElement('button');
+  blackToggle.type = 'button';
+  blackToggle.className = 'btn btn-primary';
+  blackToggle.textContent = '黒番（先手）';
+  blackToggle.addEventListener('click', () => setCreatorColor('black'));
+  colorRow.appendChild(blackToggle);
+
+  const whiteToggle = document.createElement('button');
+  whiteToggle.type = 'button';
+  whiteToggle.className = 'btn';
+  whiteToggle.textContent = '白番（後手）';
+  whiteToggle.addEventListener('click', () => setCreatorColor('white'));
+  colorRow.appendChild(whiteToggle);
+
+  createSection.appendChild(colorRow);
+
+  function setCreatorColor(color: StoneColor): void {
+    creatorColor = color;
+    blackToggle.classList.toggle('btn-primary', color === 'black');
+    whiteToggle.classList.toggle('btn-primary', color === 'white');
+  }
+
   const createButtons = document.createElement('div');
   createButtons.className = 'online-panel__buttons';
 
@@ -121,8 +148,8 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
     createError.textContent = '';
     setBusy(true);
     try {
-      const roomId = await createRoom(nameInput.value.trim(), visibility);
-      options.onRoomReady(roomId, 'black');
+      const roomId = await createRoom(nameInput.value.trim(), visibility, creatorColor);
+      options.onRoomReady(roomId, creatorColor);
     } catch (error) {
       createError.textContent = 'ルームの作成に失敗しました。時間をおいて再度お試しください。';
       console.error(error);

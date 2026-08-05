@@ -1,6 +1,6 @@
 import { showResultModal } from '../../../shared/components/resultModal';
 import type { GameOutcome } from '../../../types/common';
-import { subscribeToRoom, submitMove } from '../online/roomService';
+import { resign as resignRoom, subscribeToRoom, submitMove } from '../online/roomService';
 import type { RoomDoc, StoneColor } from '../online/types';
 import { BoardView } from './boardView';
 
@@ -26,6 +26,11 @@ function buildResult(room: RoomDoc, myColor: StoneColor): { outcome: GameOutcome
     return { outcome: 'draw', message: '引き分けです' };
   }
   const iWon = room.winner === myColor;
+
+  if (room.winReason === 'resign') {
+    return { outcome: iWon ? 'win' : 'lose', message: iWon ? '相手が投了しました' : '投了しました' };
+  }
+
   const winnerColor = room.winner as StoneColor;
   return {
     outcome: iWon ? 'win' : 'lose',
@@ -59,9 +64,23 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   });
   wrapper.appendChild(boardView.element);
 
+  const resignButton = document.createElement('button');
+  resignButton.type = 'button';
+  resignButton.className = 'btn';
+  resignButton.textContent = '投了する';
+  resignButton.addEventListener('click', () => {
+    if (!latestRoom || latestRoom.status !== 'playing') return;
+    resignRoom(roomId, color).catch((error) => console.error(error));
+  });
+  const actions = document.createElement('div');
+  actions.className = 'gomoku-actions';
+  actions.appendChild(resignButton);
+  wrapper.appendChild(actions);
+
   function updateView(room: RoomDoc): void {
     latestRoom = room;
     boardView.render(room.board, null);
+    resignButton.disabled = room.status !== 'playing';
 
     if (room.status === 'waiting') {
       status.textContent = 'ルーム番号を伝えて、対戦相手を待っています…';

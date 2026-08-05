@@ -1,6 +1,7 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
 import { showResultModal } from '../../../shared/components/resultModal';
+import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { BLACK, type Board, createEmptyBoard, type Stone, WHITE } from '../logic/board';
 import { checkWin, isBoardFull } from '../logic/rules';
@@ -66,8 +67,48 @@ function showModeSelectScreen(container: HTMLElement): void {
   onlineButton.addEventListener('click', () => showOnlineScreen(container));
   buttonRow.appendChild(onlineButton);
 
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール説明';
+  rulesButton.addEventListener('click', () => showRulesScreen(container));
+  buttonRow.appendChild(rulesButton);
+
   section.appendChild(buttonRow);
   container.appendChild(section);
+}
+
+function showRulesScreen(container: HTMLElement): void {
+  clearScreen(container);
+  container.appendChild(
+    renderRulesScreen({
+      gameName: GAME_NAME,
+      sections: [
+        {
+          title: '基本ルール',
+          body: [
+            '15×15マスの盤に、2人が交互に石を置いていきます。',
+            '縦・横・斜めのいずれかの方向に、自分の色の石を5つ以上連続して並べた方が勝ちです。',
+          ],
+        },
+        {
+          title: '禁じ手・引き分け',
+          body: [
+            '禁じ手はありません。6つ以上連続する「長連」でも勝ちになります。',
+            '盤面がすべて埋まっても勝敗が決まらない場合は引き分けです。',
+          ],
+        },
+        {
+          title: '対戦モード',
+          body: [
+            'CPU対戦では弱・中・強の3段階の難易度から選べます。',
+            'オンライン対戦では、ルームを作成して番号を伝えるか、公開ルーム一覧から相手を見つけて対戦できます。',
+          ],
+        },
+      ],
+      onBack: () => showModeSelectScreen(container),
+    }),
+  );
 }
 
 function showDifficultyScreen(container: HTMLElement): void {
@@ -117,6 +158,19 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
   });
   container.appendChild(boardView.element);
 
+  const resignButton = document.createElement('button');
+  resignButton.type = 'button';
+  resignButton.className = 'btn';
+  resignButton.textContent = '投了する';
+  resignButton.addEventListener('click', () => {
+    if (gameOver) return;
+    finish('lose', '投了しました');
+  });
+  const actions = document.createElement('div');
+  actions.className = 'gomoku-actions';
+  actions.appendChild(resignButton);
+  container.appendChild(actions);
+
   boardView.render(board, null);
   updateStatus();
 
@@ -154,6 +208,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
   function finish(outcome: GameOutcome, message: string): void {
     gameOver = true;
     boardView.setInteractive(false);
+    resignButton.disabled = true;
     status.textContent = '';
     showResultModal({
       result: { outcome, message },

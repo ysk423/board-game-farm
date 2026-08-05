@@ -70,3 +70,8 @@
   box-shadow: 0 0 0 2px var(--color-accent);
 }
 
+.gomoku-actions {
+  margin-top: 16px;
+  text-align: center;
+}
+

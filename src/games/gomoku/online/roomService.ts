@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
   where,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -23,6 +24,10 @@ const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // 放置ルームは3時間でFirestore
 
 function stoneColorToStone(color: StoneColor): Stone {
   return color === 'black' ? BLACK : WHITE;
+}
+
+function opponentOf(color: StoneColor): StoneColor {
+  return color === 'black' ? 'white' : 'black';
 }
 
 // Firestoreは配列の配列（ネスト配列）を直接サポートしないため、
@@ -43,19 +48,22 @@ function roomFromSnapshotData(data: Record<string, unknown>): RoomDoc {
   return { ...data, board: fromWireBoard(data.board as number[]) } as RoomDoc;
 }
 
-export async function createRoom(playerName: string, visibility: Visibility): Promise<string> {
+// 作成者は黒/白どちらでも選べる。参加者は空いている方の色になる
+export async function createRoom(playerName: string, visibility: Visibility, creatorColor: StoneColor): Promise<string> {
   const roomId = generateRoomId();
+  const opponentColor = opponentOf(creatorColor);
 
   await setDoc(doc(db, ROOMS_COLLECTION, roomId), {
     board: toWireBoard(createEmptyBoard()),
     turn: 'black',
     players: {
-      black: { name: playerName },
-      white: null,
+      [creatorColor]: { name: playerName },
+      [opponentColor]: null,
     },
     visibility,
     status: 'waiting',
     winner: null,
+    winReason: null,
     createdAt: serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + ROOM_TTL_MS),
   });
@@ -71,15 +79,20 @@ export async function joinRoom(roomId: string, playerName: string): Promise<Join
     if (!snapshot.exists()) return { ok: false, reason: 'not-found' } as const;
 
     const room = roomFromSnapshotData(snapshot.data());
-    if (room.status !== 'waiting' || room.players.white) {
+    if (room.status !== 'waiting') {
+      return { ok: false, reason: 'full' } as const;
+    }
+
+    const openColor: StoneColor | null = !room.players.black ? 'black' : !room.players.white ? 'white' : null;
+    if (!openColor) {
       return { ok: false, reason: 'full' } as const;
     }
 
     tx.update(roomRef, {
-      'players.white': { name: playerName },
+      [`players.${openColor}`]: { name: playerName },
       status: 'playing',
     });
-    return { ok: true, color: 'white' } as const;
+    return { ok: true, color: openColor } as const;
   });
 }
 
@@ -97,7 +110,7 @@ export function subscribeToOpenRooms(callback: (rooms: RoomSummary[]) => void): 
         const data = docSnap.data() as RoomDoc;
         return {
           roomId: docSnap.id,
-          hostName: data.players.black?.name || '名無しさん',
+          hostName: data.players.black?.name || data.players.white?.name || '名無しさん',
           createdAt: data.createdAt,
         };
       }),
@@ -111,8 +124,6 @@ export function subscribeToRoom(roomId: string, callback: (room: RoomDoc | null)
   });
 }
 
-// 手番・空きマスをトランザクション内で再確認してから書き込み、勝敗判定もクライアント側で行う
-// （サーバーサイドロジックを持たないという既存方針を踏襲）
 export async function submitMove(roomId: string, row: number, col: number, color: StoneColor): Promise<void> {
   const roomRef = doc(db, ROOMS_COLLECTION, roomId);
 
@@ -136,6 +147,15 @@ export async function submitMove(roomId: string, row: number, col: number, color
       turn: color === 'black' ? 'white' : 'black',
       status: win || draw ? 'finished' : 'playing',
       winner: win ? color : draw ? 'draw' : null,
+      winReason: win ? 'five-in-a-row' : null,
     });
+  });
+}
+
+export async function resign(roomId: string, color: StoneColor): Promise<void> {
+  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+    status: 'finished',
+    winner: opponentOf(color),
+    winReason: 'resign',
   });
 }

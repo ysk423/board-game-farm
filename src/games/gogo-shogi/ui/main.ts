@@ -1,6 +1,7 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
 import { showResultModal } from '../../../shared/components/resultModal';
+import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { type GameState, createInitialState } from '../logic/board';
 import { type HandPieceType, type Player, opponentOf } from '../logic/pieces';
@@ -72,8 +73,60 @@ function showModeSelectScreen(container: HTMLElement): void {
   onlineButton.addEventListener('click', () => showOnlineScreen(container));
   buttonRow.appendChild(onlineButton);
 
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール説明';
+  rulesButton.addEventListener('click', () => showRulesScreen(container));
+  buttonRow.appendChild(rulesButton);
+
   section.appendChild(buttonRow);
   container.appendChild(section);
+}
+
+function showRulesScreen(container: HTMLElement): void {
+  clearScreen(container);
+  container.appendChild(
+    renderRulesScreen({
+      gameName: GAME_NAME,
+      sections: [
+        {
+          title: '盤・駒',
+          body: [
+            '5×5マスの盤を使う、本将棋のミニチュア版です。桂馬・香車は使いません。',
+            '駒の動き方は本将棋と同じです（王将/玉将は全方向1マス、飛車は縦横、角行は斜め、金将は前・斜め前・横・後、銀将は前・斜め前・斜め後、歩兵は前に1マス）。',
+          ],
+        },
+        {
+          title: '持ち駒',
+          body: ['取った相手の駒は自分の持ち駒になり、自分の手番に空いているマスへ打つことができます。'],
+        },
+        {
+          title: '成り',
+          body: [
+            '最も奥の1列（敵陣）に入る、またはそこから動く手を指した際に、その駒を成ることができます。',
+            '王将・玉将・金将は成れません。飛車→竜王、角行→竜馬、銀将→成銀、歩兵→と金になります。',
+          ],
+        },
+        {
+          title: '禁止事項',
+          body: [
+            '二歩（同じ筋に自分の歩を2枚にする手）は禁止です。',
+            '打ち歩詰め（歩を打って詰ませる手）は禁止です。',
+            '行き所のない駒を打つ・進める手（最奥段への歩打ちなど）は禁止です。',
+          ],
+        },
+        {
+          title: '勝敗',
+          body: [
+            '相手の玉を詰ませたら勝ちです。投了ボタンでも終局できます。',
+            '同一局面が4回出現する千日手は先手の負けになります（ただし片方が王手をかけ続けていた場合はその側の負けになります）。',
+          ],
+        },
+      ],
+      onBack: () => showModeSelectScreen(container),
+    }),
+  );
 }
 
 function showDifficultyScreen(container: HTMLElement): void {
@@ -121,10 +174,10 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
   const layout = document.createElement('div');
   layout.className = 'shogi-layout';
 
-  const goteHandView = new HandView('gote', () => {
+  const goteHandView = new HandView('gote', 'CPUの持ち駒', () => {
     /* CPUの持ち駒はクリック不可 */
   });
-  const senteHandView = new HandView('sente', (owner, pieceType) => handleHandClick(owner, pieceType));
+  const senteHandView = new HandView('sente', 'あなたの持ち駒', (owner, pieceType) => handleHandClick(owner, pieceType));
   const boardView = new BoardView((row, col) => handleCellClick(row, col));
 
   const resignButton = document.createElement('button');
