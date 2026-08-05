@@ -10,8 +10,7 @@ export interface OnlineScreenView {
   dispose: () => void;
 }
 
-// オンライン対戦のロビー画面。名前入力・ルーム作成（公開/非公開）・公開ルーム一覧・
-// ルーム番号での参加、をひとつの画面にまとめる
+// オンライン対戦のロビー画面（五目並べのonlineScreen.tsと同じ構成）
 export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenView {
   const wrapper = document.createElement('div');
 
@@ -36,7 +35,7 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   createTitle.textContent = 'ルームを作成する';
   createSection.appendChild(createTitle);
 
-  let creatorColor: StoneColor = 'black';
+  let creatorColor: StoneColor = 'maru';
   let visibility: Visibility = 'public';
 
   const colorGroup = document.createElement('div');
@@ -49,27 +48,27 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   const colorRow = document.createElement('div');
   colorRow.className = 'online-panel__buttons';
 
-  const blackToggle = document.createElement('button');
-  blackToggle.type = 'button';
-  blackToggle.className = 'btn btn-primary';
-  blackToggle.textContent = '黒番（先手）';
-  blackToggle.addEventListener('click', () => setCreatorColor('black'));
-  colorRow.appendChild(blackToggle);
+  const maruToggle = document.createElement('button');
+  maruToggle.type = 'button';
+  maruToggle.className = 'btn btn-primary';
+  maruToggle.textContent = '○（先手）';
+  maruToggle.addEventListener('click', () => setCreatorColor('maru'));
+  colorRow.appendChild(maruToggle);
 
-  const whiteToggle = document.createElement('button');
-  whiteToggle.type = 'button';
-  whiteToggle.className = 'btn';
-  whiteToggle.textContent = '白番（後手）';
-  whiteToggle.addEventListener('click', () => setCreatorColor('white'));
-  colorRow.appendChild(whiteToggle);
+  const batsuToggle = document.createElement('button');
+  batsuToggle.type = 'button';
+  batsuToggle.className = 'btn';
+  batsuToggle.textContent = '×（後手）';
+  batsuToggle.addEventListener('click', () => setCreatorColor('batsu'));
+  colorRow.appendChild(batsuToggle);
 
   colorGroup.appendChild(colorRow);
   createSection.appendChild(colorGroup);
 
   function setCreatorColor(color: StoneColor): void {
     creatorColor = color;
-    blackToggle.classList.toggle('btn-primary', color === 'black');
-    whiteToggle.classList.toggle('btn-primary', color === 'white');
+    maruToggle.classList.toggle('btn-primary', color === 'maru');
+    batsuToggle.classList.toggle('btn-primary', color === 'batsu');
   }
 
   const visibilityGroup = document.createElement('div');

@@ -12,6 +12,8 @@ export default defineConfig({
         gogoShogi: resolve(__dirname, 'gogo-shogi.html'),
         tictactoe: resolve(__dirname, 'tictactoe.html'),
         otrio: resolve(__dirname, 'otrio.html'),
+        yonmoku: resolve(__dirname, 'yonmoku.html'),
+        gobblet: resolve(__dirname, 'gobblet.html'),
       },
     },
   },

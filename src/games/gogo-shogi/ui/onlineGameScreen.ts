@@ -1,4 +1,4 @@
-import { showResultModal } from '../../../shared/components/resultModal';
+import { showResultBanner } from '../../../shared/components/resultBanner';
 import type { GameOutcome } from '../../../types/common';
 import type { HandPieceType, Player } from '../logic/pieces';
 import type { Move } from '../logic/moveGenerator';
@@ -216,7 +216,8 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     if (latestRoom.status === 'finished' && !resultShown) {
       resultShown = true;
       boardView.setInteractive(false);
-      showResultModal({
+      showResultBanner({
+        container: wrapper,
         result: buildResult(latestRoom, color),
         onReplay: onLeave,
       });

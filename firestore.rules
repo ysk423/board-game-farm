@@ -61,5 +61,121 @@ service cloud.firestore {
         && isValidShogiBoard(request.resource.data.board);
       allow delete: if false;
     }
+
+    match /tictactoeGames/{roomId} {
+      function isValidTicTacToeBoard(board) {
+        // 3x3盤をフラットな9要素の配列として保存している（Firestoreはネスト配列非対応のため）
+        return board is list && board.size() == 9;
+      }
+
+      function isValidNewTicTacToeRoom(data) {
+        return data.board is list
+          && isValidTicTacToeBoard(data.board)
+          && data.turn == 'maru'
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.winReason == null
+          && ((data.players.maru is map && data.players.batsu == null)
+            || (data.players.batsu is map && data.players.maru == null))
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewTicTacToeRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidTicTacToeBoard(request.resource.data.board);
+      allow delete: if false;
+    }
+
+    match /otrioGames/{roomId} {
+      function isValidOtrioBoard(board) {
+        // 3x3盤をフラットな9要素の配列として保存している（各要素はCellオブジェクト）
+        return board is list && board.size() == 9;
+      }
+
+      function isValidNewOtrioRoom(data) {
+        return data.board is list
+          && isValidOtrioBoard(data.board)
+          && data.turn == 1
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.winReason == null
+          && data.inventory is map
+          && ((data.players['1'] is map && data.players['2'] == null)
+            || (data.players['2'] is map && data.players['1'] == null))
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewOtrioRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidOtrioBoard(request.resource.data.board);
+      allow delete: if false;
+    }
+
+    match /yonmokuGames/{roomId} {
+      function isValidYonmokuBoard(board) {
+        // 15x15盤をフラットな225要素の配列として保存している（五目並べと同じ構造）
+        return board is list && board.size() == 225;
+      }
+
+      function isValidNewYonmokuRoom(data) {
+        return data.board is list
+          && isValidYonmokuBoard(data.board)
+          && data.turn == 'black'
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.winReason == null
+          && ((data.players.black is map && data.players.white == null)
+            || (data.players.white is map && data.players.black == null))
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewYonmokuRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidYonmokuBoard(request.resource.data.board);
+      allow delete: if false;
+    }
+
+    match /gobbletGames/{roomId} {
+      function isValidGobbletBoard(board) {
+        // 3x3盤、各マスを「駒スタックを固定長3要素にエンコードした数値配列」として保存しているため
+        // 9マス×3要素=27要素のフラット配列になる
+        return board is list && board.size() == 27;
+      }
+
+      function isValidNewGobbletRoom(data) {
+        return data.board is list
+          && isValidGobbletBoard(data.board)
+          && data.turn == 1
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.winReason == null
+          && data.inventory is map
+          && data.history is list
+          && ((data.players['1'] is map && data.players['2'] == null)
+            || (data.players['2'] is map && data.players['1'] == null))
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewGobbletRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidGobbletBoard(request.resource.data.board);
+      allow delete: if false;
+    }
   }
 }

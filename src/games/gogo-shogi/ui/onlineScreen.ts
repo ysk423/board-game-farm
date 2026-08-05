@@ -38,6 +38,14 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   createSection.appendChild(createTitle);
 
   let creatorColor: Player = 'sente';
+  let visibility: Visibility = 'public';
+
+  const colorGroup = document.createElement('div');
+  colorGroup.className = 'online-panel__group';
+  const colorLabel = document.createElement('p');
+  colorLabel.className = 'online-panel__group-label';
+  colorLabel.textContent = '手番';
+  colorGroup.appendChild(colorLabel);
 
   const colorRow = document.createElement('div');
   colorRow.className = 'online-panel__buttons';
@@ -56,7 +64,8 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   goteToggle.addEventListener('click', () => setCreatorColor('gote'));
   colorRow.appendChild(goteToggle);
 
-  createSection.appendChild(colorRow);
+  colorGroup.appendChild(colorRow);
+  createSection.appendChild(colorGroup);
 
   function setCreatorColor(color: Player): void {
     creatorColor = color;
@@ -64,24 +73,45 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
     goteToggle.classList.toggle('btn-primary', color === 'gote');
   }
 
-  const createButtons = document.createElement('div');
-  createButtons.className = 'online-panel__buttons';
+  const visibilityGroup = document.createElement('div');
+  visibilityGroup.className = 'online-panel__group';
+  const visibilityLabel = document.createElement('p');
+  visibilityLabel.className = 'online-panel__group-label';
+  visibilityLabel.textContent = '公開設定';
+  visibilityGroup.appendChild(visibilityLabel);
 
-  const publicButton = document.createElement('button');
-  publicButton.type = 'button';
-  publicButton.className = 'btn btn-primary';
-  publicButton.textContent = '公開ルームを作成';
-  publicButton.addEventListener('click', () => handleCreate('public'));
-  createButtons.appendChild(publicButton);
+  const visibilityRow = document.createElement('div');
+  visibilityRow.className = 'online-panel__buttons';
 
-  const privateButton = document.createElement('button');
-  privateButton.type = 'button';
-  privateButton.className = 'btn';
-  privateButton.textContent = '非公開ルームを作成';
-  privateButton.addEventListener('click', () => handleCreate('private'));
-  createButtons.appendChild(privateButton);
+  const publicToggle = document.createElement('button');
+  publicToggle.type = 'button';
+  publicToggle.className = 'btn btn-primary';
+  publicToggle.textContent = '公開';
+  publicToggle.addEventListener('click', () => setVisibility('public'));
+  visibilityRow.appendChild(publicToggle);
 
-  createSection.appendChild(createButtons);
+  const privateToggle = document.createElement('button');
+  privateToggle.type = 'button';
+  privateToggle.className = 'btn';
+  privateToggle.textContent = '非公開';
+  privateToggle.addEventListener('click', () => setVisibility('private'));
+  visibilityRow.appendChild(privateToggle);
+
+  visibilityGroup.appendChild(visibilityRow);
+  createSection.appendChild(visibilityGroup);
+
+  function setVisibility(v: Visibility): void {
+    visibility = v;
+    publicToggle.classList.toggle('btn-primary', v === 'public');
+    privateToggle.classList.toggle('btn-primary', v === 'private');
+  }
+
+  const createRoomButton = document.createElement('button');
+  createRoomButton.type = 'button';
+  createRoomButton.className = 'btn btn-primary online-panel__create-button';
+  createRoomButton.textContent = 'ルームを作成';
+  createRoomButton.addEventListener('click', () => handleCreate(visibility));
+  createSection.appendChild(createRoomButton);
 
   const createHint = document.createElement('p');
   createHint.className = 'online-panel__hint';
@@ -140,8 +170,7 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   wrapper.appendChild(listSection);
 
   function setBusy(busy: boolean): void {
-    publicButton.disabled = busy;
-    privateButton.disabled = busy;
+    createRoomButton.disabled = busy;
     joinButton.disabled = busy;
   }
 
