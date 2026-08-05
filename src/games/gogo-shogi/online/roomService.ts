@@ -42,17 +42,19 @@ function roomFromSnapshotData(data: Record<string, unknown>): RoomDoc {
   return { ...data, board: fromWireBoard(data.board as Square[]) } as RoomDoc;
 }
 
-export async function createRoom(playerName: string, visibility: Visibility): Promise<string> {
+// 作成者は先手/後手どちらでも選べる。参加者は空いている方の手番になる
+export async function createRoom(playerName: string, visibility: Visibility, creatorColor: Player): Promise<string> {
   const roomId = generateRoomId();
   const initial: GameState = createInitialState();
+  const opponentColor = opponentOf(creatorColor);
 
   await setDoc(doc(db, ROOMS_COLLECTION, roomId), {
     board: toWireBoard(initial.board),
     hand: initial.hand,
     turn: initial.turn,
     players: {
-      sente: { name: playerName },
-      gote: null,
+      [creatorColor]: { name: playerName },
+      [opponentColor]: null,
     },
     visibility,
     status: 'waiting',
@@ -74,15 +76,20 @@ export async function joinRoom(roomId: string, playerName: string): Promise<Join
     if (!snapshot.exists()) return { ok: false, reason: 'not-found' } as const;
 
     const room = roomFromSnapshotData(snapshot.data());
-    if (room.status !== 'waiting' || room.players.gote) {
+    if (room.status !== 'waiting') {
+      return { ok: false, reason: 'full' } as const;
+    }
+
+    const openColor: Player | null = !room.players.sente ? 'sente' : !room.players.gote ? 'gote' : null;
+    if (!openColor) {
       return { ok: false, reason: 'full' } as const;
     }
 
     tx.update(roomRef, {
-      'players.gote': { name: playerName },
+      [`players.${openColor}`]: { name: playerName },
       status: 'playing',
     });
-    return { ok: true, color: 'gote' } as const;
+    return { ok: true, color: openColor } as const;
   });
 }
 
@@ -100,7 +107,7 @@ export function subscribeToOpenRooms(callback: (rooms: RoomSummary[]) => void): 
         const data = docSnap.data() as RoomDoc;
         return {
           roomId: docSnap.id,
-          hostName: data.players.sente?.name || '名無しさん',
+          hostName: data.players.sente?.name || data.players.gote?.name || '名無しさん',
           createdAt: data.createdAt,
         };
       }),

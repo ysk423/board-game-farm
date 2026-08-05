@@ -15,7 +15,7 @@ const GAMES: GameCardData[] = [
     id: 'gomoku',
     icon: '⚫',
     title: '五目並べ',
-    description: '15×15の盤で5つ石を並べたら勝ち。CPU対戦（弱・中・強）。',
+    description: '15×15の盤で5つ石を並べたら勝ち。CPU対戦（弱・中・強）・オンライン対戦に対応。',
     href: './gomoku.html',
     accentVar: '--color-accent-gomoku',
   },
@@ -23,7 +23,7 @@ const GAMES: GameCardData[] = [
     id: 'gogo-shogi',
     icon: '将',
     title: '五五将棋',
-    description: '5×5マスのミニ将棋。持ち駒あり。CPU対戦（弱・中・強）。',
+    description: '5×5マスのミニ将棋。持ち駒あり。CPU対戦（弱・中・強）・オンライン対戦に対応。',
     href: './gogo-shogi.html',
     accentVar: '--color-accent-gogo-shogi',
   },
@@ -66,7 +66,6 @@ function main() {
   hero.className = 'portal-hero';
   hero.innerHTML = `
     <h1 class="portal-hero__title">遊びたいゲームを選んでください</h1>
-    <p class="portal-hero__subtitle">すべてCPU対戦・ブラウザ内で完結します</p>
   `;
   container.appendChild(hero);
 

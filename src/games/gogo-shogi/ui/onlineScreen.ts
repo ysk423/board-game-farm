@@ -1,8 +1,9 @@
+import type { Player } from '../logic/pieces';
 import { createRoom, joinRoom, subscribeToOpenRooms } from '../online/roomService';
 import type { RoomSummary, Visibility } from '../online/types';
 
 export interface OnlineScreenOptions {
-  onRoomReady: (roomId: string, color: 'sente' | 'gote') => void;
+  onRoomReady: (roomId: string, color: Player) => void;
 }
 
 export interface OnlineScreenView {
@@ -33,8 +34,35 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   createSection.className = 'card online-panel';
   const createTitle = document.createElement('h3');
   createTitle.className = 'online-panel__title';
-  createTitle.textContent = 'ルームを作成する（あなたが先手になります）';
+  createTitle.textContent = 'ルームを作成する';
   createSection.appendChild(createTitle);
+
+  let creatorColor: Player = 'sente';
+
+  const colorRow = document.createElement('div');
+  colorRow.className = 'online-panel__buttons';
+
+  const senteToggle = document.createElement('button');
+  senteToggle.type = 'button';
+  senteToggle.className = 'btn btn-primary';
+  senteToggle.textContent = '先手（王将）';
+  senteToggle.addEventListener('click', () => setCreatorColor('sente'));
+  colorRow.appendChild(senteToggle);
+
+  const goteToggle = document.createElement('button');
+  goteToggle.type = 'button';
+  goteToggle.className = 'btn';
+  goteToggle.textContent = '後手（玉将）';
+  goteToggle.addEventListener('click', () => setCreatorColor('gote'));
+  colorRow.appendChild(goteToggle);
+
+  createSection.appendChild(colorRow);
+
+  function setCreatorColor(color: Player): void {
+    creatorColor = color;
+    senteToggle.classList.toggle('btn-primary', color === 'sente');
+    goteToggle.classList.toggle('btn-primary', color === 'gote');
+  }
 
   const createButtons = document.createElement('div');
   createButtons.className = 'online-panel__buttons';
@@ -70,7 +98,7 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   joinSection.className = 'card online-panel';
   const joinTitle = document.createElement('h3');
   joinTitle.className = 'online-panel__title';
-  joinTitle.textContent = 'ルーム番号で参加する（あなたが後手になります）';
+  joinTitle.textContent = 'ルーム番号で参加する（作成者が選んだ方の逆の手番になります）';
   joinSection.appendChild(joinTitle);
 
   const joinRow = document.createElement('div');
@@ -121,8 +149,8 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
     createError.textContent = '';
     setBusy(true);
     try {
-      const roomId = await createRoom(nameInput.value.trim(), visibility);
-      options.onRoomReady(roomId, 'sente');
+      const roomId = await createRoom(nameInput.value.trim(), visibility, creatorColor);
+      options.onRoomReady(roomId, creatorColor);
     } catch (error) {
       createError.textContent = 'ルームの作成に失敗しました。時間をおいて再度お試しください。';
       console.error(error);

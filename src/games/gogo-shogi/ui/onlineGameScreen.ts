@@ -67,11 +67,11 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   const layout = document.createElement('div');
   layout.className = 'shogi-layout';
 
-  const opponentHandView = new HandView(opponentColor, () => {
+  const opponentHandView = new HandView(opponentColor, '対戦相手の持ち駒', () => {
     /* 相手の持ち駒はクリック不可 */
   });
-  const myHandView = new HandView(color, (owner, pieceType) => handleHandClick(owner, pieceType));
-  const boardView = new BoardView((row, col) => handleCellClick(row, col));
+  const myHandView = new HandView(color, 'あなたの持ち駒', (owner, pieceType) => handleHandClick(owner, pieceType));
+  const boardView = new BoardView((row, col) => handleCellClick(row, col), color);
 
   const resignButton = document.createElement('button');
   resignButton.type = 'button';
@@ -206,6 +206,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     const highlights = getLegalDestinations();
     const selectedBoardPos = selection?.type === 'board' ? selection.pos : null;
     boardView.render(latestRoom, { selected: selectedBoardPos, highlights, lastMove: null });
+    opponentHandView.setLabel(`${playerLabel(opponentColor, latestRoom)}の持ち駒`);
     opponentHandView.render(latestRoom.hand[opponentColor], null);
     myHandView.render(latestRoom.hand[color], selection?.type === 'hand' ? selection.pieceType : null);
     boardView.setInteractive(latestRoom.status === 'playing' && latestRoom.turn === color);

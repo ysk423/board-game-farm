@@ -18,8 +18,9 @@ service cloud.firestore {
           && data.visibility in ['public', 'private']
           && data.status == 'waiting'
           && data.winner == null
-          && data.players.black is map
-          && data.players.white == null
+          && data.winReason == null
+          && ((data.players.black is map && data.players.white == null)
+            || (data.players.white is map && data.players.black == null))
           && data.createdAt is timestamp
           && data.expiresAt is timestamp;
       }
@@ -46,8 +47,8 @@ service cloud.firestore {
           && data.status == 'waiting'
           && data.winner == null
           && data.winReason == null
-          && data.players.sente is map
-          && data.players.gote == null
+          && ((data.players.sente is map && data.players.gote == null)
+            || (data.players.gote is map && data.players.sente == null))
           && data.history is list
           && data.createdAt is timestamp
           && data.expiresAt is timestamp;

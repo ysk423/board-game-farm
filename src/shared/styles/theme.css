@@ -240,3 +240,32 @@ a {
   color: var(--color-text-muted);
   margin: 0 0 4px;
 }
+
+/* ルール説明画面（複数ゲームで共通利用） */
+.rules-screen {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 32px;
+}
+
+.rules-screen__title {
+  font-size: 20px;
+  margin: 0 0 20px;
+}
+
+.rules-screen__section-title {
+  font-size: 15px;
+  margin: 20px 0 8px;
+  color: var(--color-accent);
+}
+
+.rules-screen__paragraph {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+
+.rules-screen__back {
+  margin-top: 24px;
+}

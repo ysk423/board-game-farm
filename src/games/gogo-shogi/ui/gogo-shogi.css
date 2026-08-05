@@ -102,7 +102,7 @@
   color: #e8eaed;
 }
 
-.shogi-cell--gote .shogi-piece {
+.shogi-cell--flipped-piece .shogi-piece {
   display: inline-block;
   transform: rotate(180deg);
 }
