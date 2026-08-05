@@ -69,3 +69,87 @@
 .gomoku-cell--last::after {
   box-shadow: 0 0 0 2px var(--color-accent);
 }
+
+/* オンライン対戦 */
+.online-panel {
+  max-width: 480px;
+  margin: 0 auto 16px;
+  padding: 20px 24px;
+}
+
+.online-panel__label {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.online-panel__title {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.online-panel__input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.online-panel__input--code {
+  width: auto;
+  flex: 1;
+  margin-top: 0;
+  text-transform: uppercase;
+}
+
+.online-panel__buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.online-panel__hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 10px 0 0;
+}
+
+.online-panel__error {
+  font-size: 13px;
+  color: var(--color-danger);
+  margin: 8px 0 0;
+  min-height: 16px;
+}
+
+.online-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.online-room-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+}
+
+.online-room-info {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px;
+}

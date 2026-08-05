@@ -6,10 +6,24 @@ import { BLACK, type Board, createEmptyBoard, type Stone, WHITE } from '../logic
 import { checkWin, isBoardFull } from '../logic/rules';
 import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
+import { renderOnlineScreen } from './onlineScreen';
+import { renderOnlineGameScreen } from './onlineGameScreen';
+import type { StoneColor } from '../online/types';
 
 const GAME_NAME = '五目並べ';
 // CPUの着手を即座に反映すると考えているように見えないため、わずかに間を置く
 const CPU_THINK_DELAY_MS = 300;
+
+// オンライン対戦画面はFirestoreの購読(onSnapshot)を持つため、画面遷移のたびに解除する
+let activeDispose: (() => void) | null = null;
+
+function clearScreen(container: HTMLElement): void {
+  if (activeDispose) {
+    activeDispose();
+    activeDispose = null;
+  }
+  container.innerHTML = '';
+}
 
 function main() {
   const app = document.getElementById('app');
@@ -21,11 +35,43 @@ function main() {
   container.className = 'container';
   app.appendChild(container);
 
-  showDifficultyScreen(container);
+  showModeSelectScreen(container);
+}
+
+function showModeSelectScreen(container: HTMLElement): void {
+  clearScreen(container);
+
+  const section = document.createElement('section');
+  section.className = 'card difficulty-selector';
+
+  const title = document.createElement('h2');
+  title.className = 'difficulty-selector__title';
+  title.textContent = `${GAME_NAME} - 対戦相手を選んでください`;
+  section.appendChild(title);
+
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'difficulty-selector__buttons';
+
+  const cpuButton = document.createElement('button');
+  cpuButton.type = 'button';
+  cpuButton.className = 'btn btn-primary';
+  cpuButton.textContent = 'CPU対戦';
+  cpuButton.addEventListener('click', () => showDifficultyScreen(container));
+  buttonRow.appendChild(cpuButton);
+
+  const onlineButton = document.createElement('button');
+  onlineButton.type = 'button';
+  onlineButton.className = 'btn btn-primary';
+  onlineButton.textContent = 'オンライン対戦';
+  onlineButton.addEventListener('click', () => showOnlineScreen(container));
+  buttonRow.appendChild(onlineButton);
+
+  section.appendChild(buttonRow);
+  container.appendChild(section);
 }
 
 function showDifficultyScreen(container: HTMLElement): void {
-  container.innerHTML = '';
+  clearScreen(container);
   container.appendChild(
     renderDifficultySelector({
       gameName: GAME_NAME,
@@ -34,8 +80,28 @@ function showDifficultyScreen(container: HTMLElement): void {
   );
 }
 
+function showOnlineScreen(container: HTMLElement): void {
+  clearScreen(container);
+  const view = renderOnlineScreen({
+    onRoomReady: (roomId, color) => showOnlineGameScreen(container, roomId, color),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
+}
+
+function showOnlineGameScreen(container: HTMLElement, roomId: string, color: StoneColor): void {
+  clearScreen(container);
+  const view = renderOnlineGameScreen({
+    roomId,
+    color,
+    onLeave: () => showOnlineScreen(container),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
+}
+
 function startGame(container: HTMLElement, difficulty: Difficulty): void {
-  container.innerHTML = '';
+  clearScreen(container);
 
   const board: Board = createEmptyBoard();
   let turn: Stone = BLACK; // プレイヤーは黒（先手）固定

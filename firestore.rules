@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// 認証なし・性善説ベースの簡易ルール（README参照）。
+// 「今が誰の手番か」をルール側では判定できないため、手番制御はクライアント側の自己申告に依存する。
+// ここでは最低限、データ形式が壊れた書き込み・確定済みゲームへの書き込みだけを防ぐ。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /games/{roomId} {
+      function isValidBoard(board) {
+        // 15x15盤をフラットな225要素の配列として保存している（Firestoreはネスト配列非対応のため）
+        return board is list && board.size() == 225;
+      }
+
+      function isValidNewRoom(data) {
+        return data.board is list
+          && isValidBoard(data.board)
+          && data.turn == 'black'
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.players.black is map
+          && data.players.white == null
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidBoard(request.resource.data.board);
+      allow delete: if false;
+    }
+  }
+}

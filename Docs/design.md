@@ -76,6 +76,34 @@ CSSカスタムプロパティでデザイントークンを定義（`--color-bg
 - **中**: 候補手ごとに自分の攻撃スコア＋相手の防御スコア（0.9倍）を合算し、最大の手を選ぶ貪欲法。
 - **強**: 中と同じ評価関数をベースに、ミニマックス＋αβ枝刈りで探索。`HARD_SEARCH_DEPTH = 4`、候補手は評価スコア上位 `HARD_BRANCH_LIMIT = 8` 手に絞って各ノードを展開。葉ノードは盤面全体の評価関数`evaluateBoard`（既存の全ラインを走査し、連の「先頭」でのみ加点することで重複計上を防止）で評価。
 
+## 4.5 五目並べのオンライン対戦（Phase 2）
+
+CPU対戦の`logic/`（`board.ts`, `rules.ts`）はそのまま再利用し、Firestore連携部分だけを`online/`ディレクトリに分離している。
+
+### shared/firebase.ts
+Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`等）はクライアント公開前提のためハードコードしている。
+
+### games/gomoku/online/types.ts
+`RoomDoc`（Firestoreの`games/{roomId}`ドキュメントに対応するアプリ内表現。`board`は`Board`型＝2次元配列として扱う）、`RoomSummary`（ロビー一覧用）、`Visibility`, `StoneColor`, `JoinRoomResult`を定義。
+
+### games/gomoku/online/roomService.ts
+- `createRoom(playerName, visibility)`: 6文字のルーム番号（`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`から生成、紛らわしい文字を除外）を発行し、`games/{roomId}`を新規作成。`expiresAt`に作成時刻+3時間を設定（Firestore TTLポリシーでの自動削除に使う）。
+- `joinRoom(roomId, playerName)`: `runTransaction`で「waiting状態か」「白が空いているか」を確認してから参加させる（満員・不存在をレースなく判定するため）。
+- `subscribeToOpenRooms(callback)` / `subscribeToRoom(roomId, callback)`: `onSnapshot`によるリアルタイム購読。ロビーの公開ルーム一覧・対局画面の盤面同期の両方をこれで実現しており、ポーリングは行わない。
+- `submitMove(roomId, row, col, color)`: `runTransaction`内で「手番か」「空きマスか」を再確認してから着手し、`checkWin`/`isBoardFull`（既存のgomoku/logic/rules.tsを再利用）で勝敗判定して`status`/`winner`/`turn`を同一トランザクションで更新する。Cloud Functions等のサーバーサイドロジックは持たない。
+
+**Firestoreはネスト配列（配列の配列）を直接サポートしていない**ため、15×15の`Board`型をそのまま保存できない（`setDoc`が`Nested arrays are not supported`で失敗する）。そのため`roomService.ts`内に`toWireBoard`/`fromWireBoard`というシリアライズ関数を用意し、Firestoreへの書き込み時は225要素のフラット配列に変換し、読み込み時に2次元配列へ復元している。この変換は`roomService.ts`の中だけで完結させ、呼び出し側（UI層）は常に`Board`型として扱える。
+
+### games/gomoku/ui/onlineScreen.ts / onlineGameScreen.ts
+- `onlineScreen.ts`: ロビー画面（名前入力・公開/非公開ルーム作成・公開ルーム一覧・ルーム番号入力）。`subscribeToOpenRooms`のunsubscribe関数を`dispose`として呼び出し元に返す。
+- `onlineGameScreen.ts`: 待機〜対局〜結果表示を1つの`subscribeToRoom`購読で処理する。既存の`BoardView`（CPU対戦と共通）をそのまま再利用し、`status`（waiting/playing/finished）に応じて表示を出し分ける。
+- `ui/main.ts`側で`activeDispose`という単一の変数を持ち、画面遷移（モード選択⇄CPU対戦⇄オンライン対戦）のたびに前の画面のFirestore購読を解除してから新しい画面を描画する。これを怠るとタブを離れても購読が残り続け、無駄な読み取り課金や、存在しないDOMを更新しようとする空振り処理が発生するため。
+
+### firestore.rules / firestore.indexes.json
+認証なし・性善説ベースの簡易ルール（「今が誰の手番か」はルール側では判別できないため、手番制御はクライアントの自己申告に依存する）。最低限のガードとして、`board`が225要素の配列であること、`visibility`/`status`が想定値であること、`status`が`finished`になったドキュメントへの追加更新を禁止すること、を`firestore.rules`でチェックしている。
+
+ロビーの公開ルーム一覧クエリ（`visibility`と`status`の等価条件2つ＋`createdAt`の`orderBy`）はFirestoreの複合インデックスを要求するため、`firestore.indexes.json`に定義してデプロイしている（未定義のままだとブラウザコンソールに`failed-precondition: The query requires an index`エラーが出る）。
+
 ## 5. 五五将棋のロジック設計
 
 五目並べに比べてルールが複雑なため、責務を5ファイルに分割している。
@@ -135,7 +163,7 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 - `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
 - ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
 
-## 9. 今後の拡張ポイント（Phase 2 / Phase 3向けメモ）
+## 9. 今後の拡張ポイント（Phase 2続き / Phase 3向けメモ）
 
-- オンライン対戦を追加する場合、`logic/`層（`board.ts` / `rules.ts` 等）は状態遷移が純粋関数として分離されているため、Firestoreとの同期層は`ui/main.ts`相当の箇所に追加する形で組み込みやすい設計にしてある。
+- **五五将棋へのオンライン対戦展開**: 五目並べで実証済みのパターン（`shared/firebase.ts` を共通利用し、`src/games/gogo-shogi/online/roomService.ts` 相当を新設、`logic/`層の`applyMove`/`generateLegalMoves`等をそのまま再利用）を踏襲すればよい。ただし五五将棋は持ち駒・成りがあり盤面より状態が複雑なため、Firestoreドキュメントの構造（`hand`の表現、成り選択の同期タイミングなど）は五目並べのものをそのまま流用せず改めて設計すること。盤面のシリアライズは五目並べと同様「Firestoreはネスト配列非対応」という制約に注意（4.5節参照）。
 - 新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。
