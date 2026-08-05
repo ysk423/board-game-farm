@@ -10,6 +10,8 @@
 
   --color-accent-gomoku: #3ddc97;
   --color-accent-gogo-shogi: #e8a33d;
+  --color-accent-tictactoe: #4d96ff;
+  --color-accent-otrio: #c77dff;
   --color-accent: var(--color-accent-gomoku);
 
   --radius: 8px;

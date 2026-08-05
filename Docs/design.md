@@ -17,6 +17,8 @@
 ├─ index.html                 # ポータルトップ
 ├─ gomoku.html                # 五目並べのエントリHTML
 ├─ gogo-shogi.html            # 五五将棋のエントリHTML
+├─ tictactoe.html             # 〇×ゲームのエントリHTML
+├─ otrio.html                 # オートリオのエントリHTML
 ├─ vite.config.ts             # base path・Multi-Page構成
 ├─ tsconfig.json
 ├─ vitest.config.ts
@@ -36,9 +38,15 @@
 │     ├─ gomoku/
 │     │  ├─ logic/            # board.ts / rules.ts / ai.ts（DOMに依存しない純粋なロジック）
 │     │  └─ ui/                # boardView.ts / main.ts / gomoku.css（logicを使って画面を組み立てる）
-│     └─ gogo-shogi/
-│        ├─ logic/            # pieces.ts / board.ts / moveGenerator.ts / rules.ts / ai.ts
-│        └─ ui/                # boardView.ts / handView.ts / main.ts / gogo-shogi.css
+│     ├─ gogo-shogi/
+│     │  ├─ logic/            # pieces.ts / board.ts / moveGenerator.ts / rules.ts / ai.ts
+│     │  └─ ui/                # boardView.ts / handView.ts / main.ts / gogo-shogi.css
+│     ├─ tictactoe/            # 〇×ゲーム（CPU対戦のみ、五目並べのlogic/uiとほぼ同型）
+│     │  ├─ logic/
+│     │  └─ ui/
+│     └─ otrio/                # オートリオ（CPU対戦のみ）
+│        ├─ logic/
+│        └─ ui/                # boardView.ts / inventoryView.ts / main.ts / otrio.css
 ```
 
 「ゲームごとにロジックを分離し、共通部分をshared化する」「logic層はDOM非依存の純粋関数群にし、ui層がそれを使って画面を組み立てる」という2つの方針を一貫させている。これによりロジック層はVitestで単体テストしやすく、UI層はlogic層のAPIを呼び出すだけのシンプルな構成になっている。
@@ -152,7 +160,37 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 ### ルーム番号生成の共通化
 五目並べ実装時は`roomService.ts`内にルーム番号生成ロジックを直接書いていたが、五五将棋でも全く同じロジックが必要になったため`src/shared/onlineRoomCode.ts`に`generateRoomId()`として抽出し、両ゲームの`roomService.ts`から利用する形にリファクタした。ロビー画面（`ui/onlineScreen.ts`）自体は五目並べ・五五将棋で内容がほぼ同一だが、型（`StoneColor`と`Player`など）が異なりゲームごとの`roomService`を直接呼ぶ薄いUIであるため、あえて共通化せず各ゲームディレクトリに個別実装している（無理な汎用化よりシンプルさを優先）。
 
-## 6. UI層の設計パターン
+## 6. 〇×ゲームのロジック設計
+
+五目並べの`logic/`とほぼ同型（サイズと定数名のみ変更）。`board.ts`は`BOARD_SIZE=3`、`Stone`は`MARU`(○/プレイヤー)/`BATSU`(×/CPU)。`rules.ts`の`checkWin`は五目並べと同じ4方向走査ロジックをそのまま流用している（`WIN_LENGTH=3`）。
+
+`ai.ts`は3×3という状態空間の小ささを活かした設計:
+- **弱**: 即勝ち・即阻止を優先し、なければランダム（五目並べと同じパターン）。
+- **中**: 深さ2のミニマックス＋簡易評価関数（ライン内の自分の石の数に応じたスコア、相手の石が1つでも混ざっているラインは0点）でカットオフ。
+- **強**: 深さ9（＝盤面を使い切るまで）のフルミニマックス＋αβ枝刈り。3×3は全探索が一瞬で終わるため事実上の完全読みになる。実装時にブラウザ上で最善手を指し続けて引き分けになることを確認済み。
+
+## 7. オートリオのロジック設計
+
+実在のボードゲーム「Otrio」の基本ルール（マスタールールなし）を実装。
+
+### board.ts
+`Cell`を`{ S: Player | null; M: Player | null; L: Player | null }`として定義し、駒は取り除かれない・重ねて置けるという他の2ゲームにはない特徴を表現している。`GameState`は`board`に加えて`inventory`（`Record<Player, Record<Size, number>>`、各プレイヤーの残り持ち駒数）を持つ。
+
+### rules.ts
+- `getLegalMoves(state)`: 現在の手番が残数>0で持っているサイズ×そのサイズがまだ空いているマスの全組み合わせ。
+- `checkWin(board, player)`: `LINES`（8ライン定義）×3サイズで同サイズの3並びを判定する`hasSameSizeLine`と、9マスそれぞれで小中大すべてが自分の駒かを判定する`hasTriStack`のOR。盤面が小さいため全走査で十分高速。
+- `isGameOver(state)`: 両者の持ち駒（各9個、計18個）が尽きたら引き分け側の終局。
+
+### ai.ts
+- **弱**: 仮に手番を入れ替えた`GameState`を作って`getLegalMoves`→`applyMove`→`checkWin`を試すことで「指定プレイヤーの即勝ち手」を検出する`findWinningMove`ヘルパーを使い、自分の即勝ちを優先、なければ相手の即勝ち手と同じ（マス・サイズ）に打てるなら阻止、それ以外はランダム。
+- **中/強共通の評価関数**: 8ライン×3サイズで「相手に阻害されていない自分の駒数」に応じて加点・減点するライン評価と、9マスそれぞれで「相手に阻害されていない自分のトリオ達成度（0〜3）」に応じて加点・減点するトリオ評価を合算する。
+- **中**: 深さ2のネガマックス（分岐はほぼ無制限、評価関数を使用）。
+- **強**: 深さ6・評価値上位10手に絞ったネガマックス＋αβ枝刈り（五目並べの`HARD_BRANCH_LIMIT`と同じ考え方で、盤面は小さいが持ち駒選択が絡み分岐数が多いため候補を絞っている）。初期局面でも1秒未満で応答することを確認済み。
+
+### ui
+持ち駒選択→盤面クリックで着手確定、という操作フローは五五将棋の持ち駒選択パターンをそのまま踏襲。`InventoryView`（`HandView`相当）で自分/相手の持ち駒を表示し、`BoardView`は各マスに小・中・大3つの入れ子の四角形（`.otrio-slot--S/M/L`）を絶対配置で重ねて描画し、所有者に応じて色分けする。
+
+## 8. UI層の設計パターン
 
 両ゲームともUI層は以下の責務分担で統一している。
 - `boardView.ts`: 盤面のDOM（ボタン要素）を初回に一度だけ生成し、以降は`render()`呼び出しでクラス付け替え・テキスト書き換えのみを行う（毎手DOMを作り直さない）。CPU対戦・オンライン対戦の両方から同じ`BoardView`/`HandView`を再利用する。
@@ -163,7 +201,7 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 - 成り／不成りの両方が合法手として存在する場合の選択ポップアップ（`showPromotionPrompt`）表示。
 - 千日手判定用の着手履歴（`HistoryEntry[]`）の記録と、`checkRepetition`の呼び出し（CPU対戦はローカル変数、オンライン対戦はFirestoreドキュメントの`history`フィールドとして保持）。
 
-## 7. テスト戦略
+## 9. テスト戦略
 
 Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテストを作成している（UI層のE2Eテストは対象外）。
 
@@ -172,15 +210,15 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 
 特に五五将棋は「二歩」「打ち歩詰め」「行き所のない駒」「千日手の特殊ルール」など見落としやすいルールが多いため、実装時に個別のテストケースを用意して正しさを担保した。
 
-## 8. ビルド・デプロイ構成
+## 10. ビルド・デプロイ構成
 
-- `vite.config.ts`: `base: '/board-game-farm/'`、3エントリのMulti-Page構成。
+- `vite.config.ts`: `base: '/board-game-farm/'`、5エントリのMulti-Page構成。
 - `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
 - ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
 
-## 9. 今後の拡張ポイント（Phase 3向けメモ）
+## 11. 今後の拡張ポイント（Phase 3向けメモ）
 
-五目並べ・五五将棋ともにオンライン対戦まで実装済み（Phase 2完了）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが2ゲーム分実証済みなのでそのまま踏襲できる:
+五目並べ・五五将棋はオンライン対戦まで実装済み（Phase 2完了）。〇×ゲーム・オートリオは今回CPU対戦のみで、オンライン対戦は未着手（必要になれば5五将棋の`online/`実装パターンをそのまま踏襲できる）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが2ゲーム分実証済みなのでそのまま踏襲できる:
 
 - `shared/firebase.ts`（Firestore初期化）は共通利用し、`shared/onlineRoomCode.ts`（ルーム番号生成）も共通利用する。
 - ゲーム固有の状態はそのゲーム専用のFirestoreコレクションに保存する（`games`, `shogiGames`のように分離）。

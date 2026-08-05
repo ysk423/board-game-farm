@@ -27,6 +27,22 @@ const GAMES: GameCardData[] = [
     href: './gogo-shogi.html',
     accentVar: '--color-accent-gogo-shogi',
   },
+  {
+    id: 'tictactoe',
+    icon: '〇',
+    title: '〇×ゲーム',
+    description: '3×3の盤に〇×を交互に置き、3つ並べたら勝ち。CPU対戦（弱・中・強）に対応。',
+    href: './tictactoe.html',
+    accentVar: '--color-accent-tictactoe',
+  },
+  {
+    id: 'otrio',
+    icon: '◎',
+    title: 'オートリオ',
+    description: '3×3の盤に小・中・大の駒を重ねて置く陣取りゲーム。CPU対戦（弱・中・強）に対応。',
+    href: './otrio.html',
+    accentVar: '--color-accent-otrio',
+  },
 ];
 
 function renderGameCard(game: GameCardData): HTMLElement {
