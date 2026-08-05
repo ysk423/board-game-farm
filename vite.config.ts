@@ -10,6 +10,8 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         gomoku: resolve(__dirname, 'gomoku.html'),
         gogoShogi: resolve(__dirname, 'gogo-shogi.html'),
+        tictactoe: resolve(__dirname, 'tictactoe.html'),
+        otrio: resolve(__dirname, 'otrio.html'),
       },
     },
   },

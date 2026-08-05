@@ -8,8 +8,11 @@
   --color-text-muted: #9aa0ac;
   --color-danger: #e85d5d;
 
-  --color-accent-gomoku: #3ddc97;
+  --color-accent-gomoku: #ef4444;
   --color-accent-gogo-shogi: #e8a33d;
+  --color-accent-tictactoe: #4d96ff;
+  --color-accent-otrio: #c77dff;
+  --color-accent-online: #2dd4bf; /* ゲーム固有色とは独立した「オンライン対戦」タグ専用の統一色 */
   --color-accent: var(--color-accent-gomoku);
 
   --radius: 8px;

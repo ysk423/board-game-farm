@@ -19,6 +19,8 @@ npm run dev
 - ポータルトップ（ゲーム一覧）
 - `http://localhost:5173/board-game-farm/gomoku.html`（五目並べ）
 - `http://localhost:5173/board-game-farm/gogo-shogi.html`（五五将棋）
+- `http://localhost:5173/board-game-farm/tictactoe.html`（〇×ゲーム）
+- `http://localhost:5173/board-game-farm/otrio.html`（オートリオ）
 
 ## 本番ビルドの確認
 
@@ -41,7 +43,7 @@ npm run test
 
 ## CPU対戦の動作確認
 
-各ゲームの画面で難易度（弱・中・強）を選んで対局する。五目並べ・五五将棋ともに、盤面ロジックはFirebaseを使わずブラウザ内で完結するため、`npm run dev` を起動するだけで確認できる。
+各ゲームの画面で難易度（弱・中・強）を選んで対局する。CPU対戦はどのゲームもFirebaseを使わずブラウザ内で完結するため、`npm run dev` を起動するだけで確認できる（〇×ゲーム・オートリオは今回CPU対戦のみでオンライン対戦は未実装）。
 
 ## オンライン対戦の動作確認（Phase 2・五目並べ／五五将棋共通の手順）
 
