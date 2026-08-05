@@ -1,0 +1,158 @@
+/* デザイントークン: モダン・ミニマル（チャコール系 + ゲームごとのアクセントカラー） */
+:root {
+  --color-bg: #1c1f26;
+  --color-surface: #262a33;
+  --color-surface-hover: #2e333e;
+  --color-border: #383d48;
+  --color-text: #e8eaed;
+  --color-text-muted: #9aa0ac;
+  --color-danger: #e85d5d;
+
+  --color-accent-gomoku: #3ddc97;
+  --color-accent-gogo-shogi: #e8a33d;
+  --color-accent: var(--color-accent-gomoku);
+
+  --radius: 8px;
+  --font-family: 'Hiragino Sans', 'Yu Gothic', 'Segoe UI', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+
+/* ヘッダー */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 32px;
+}
+
+.site-header__brand {
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header__back {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.site-header__back:hover {
+  color: var(--color-text);
+}
+
+/* カード */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+/* ボタン */
+.btn {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #14161a;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* 難易度選択 */
+.difficulty-selector {
+  padding: 32px;
+  text-align: center;
+}
+
+.difficulty-selector__title {
+  font-size: 18px;
+  margin: 0 0 20px;
+}
+
+.difficulty-selector__buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.difficulty-selector__button {
+  min-width: 96px;
+}
+
+/* モーダル */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 32px;
+  min-width: 280px;
+  text-align: center;
+}
+
+.modal__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.modal__message {
+  color: var(--color-text-muted);
+  margin: 0 0 24px;
+}
+
+.modal__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
