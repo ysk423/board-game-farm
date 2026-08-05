@@ -29,7 +29,9 @@
 │  ├─ types/
 │  │  └─ common.ts            # Difficulty, GameOutcome, GameResult など全ゲーム共通の型
 │  ├─ shared/
-│  │  ├─ components/          # header / difficultySelector / resultModal（DOMを組み立てて返す関数群）
+│  │  ├─ components/          # header / difficultySelector / resultBanner / rulesScreen（DOMを組み立てて返す関数群）
+│  │  ├─ onlineRoomCode.ts    # ルーム番号生成（全オンライン対戦ゲーム共通）
+│  │  ├─ firebase.ts          # Firebase App / Firestore初期化
 │  │  └─ styles/theme.css     # デザイントークン（色・角丸・フォント）と共通UIパーツのCSS
 │  ├─ portal/
 │  │  ├─ main.ts              # トップページのゲームカード描画（配列駆動）
@@ -37,16 +39,28 @@
 │  └─ games/
 │     ├─ gomoku/
 │     │  ├─ logic/            # board.ts / rules.ts / ai.ts（DOMに依存しない純粋なロジック）
-│     │  └─ ui/                # boardView.ts / main.ts / gomoku.css（logicを使って画面を組み立てる）
+│     │  ├─ online/            # types.ts / roomService.ts（Firestore連携。collection: games）
+│     │  └─ ui/                # boardView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / gomoku.css
 │     ├─ gogo-shogi/
 │     │  ├─ logic/            # pieces.ts / board.ts / moveGenerator.ts / rules.ts / ai.ts
-│     │  └─ ui/                # boardView.ts / handView.ts / main.ts / gogo-shogi.css
-│     ├─ tictactoe/            # 〇×ゲーム（CPU対戦のみ、五目並べのlogic/uiとほぼ同型）
+│     │  ├─ online/            # types.ts / roomService.ts（collection: shogiGames）
+│     │  └─ ui/                # boardView.ts / handView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / promotionPrompt.ts / gogo-shogi.css
+│     ├─ tictactoe/            # 〇×ゲーム（五目並べのlogic/uiとほぼ同型）
 │     │  ├─ logic/
-│     │  └─ ui/
-│     └─ otrio/                # オートリオ（CPU対戦のみ）
+│     │  ├─ online/            # types.ts / roomService.ts（collection: tictactoeGames）
+│     │  └─ ui/                # boardView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts
+│     ├─ otrio/                 # オートリオ
+│     │  ├─ logic/
+│     │  ├─ online/            # types.ts / roomService.ts（collection: otrioGames）
+│     │  └─ ui/                # boardView.ts / inventoryView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / otrio.css
+│     ├─ yonmoku/               # 四目並べ（gomokuのlogic/uiとほぼ同型、勝利条件のみ4連）
+│     │  ├─ logic/
+│     │  ├─ online/            # types.ts / roomService.ts（collection: yonmokuGames）
+│     │  └─ ui/                # boardView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / yonmoku.css
+│     └─ gobblet/               # ゴブレット・ゴブラーズ
 │        ├─ logic/
-│        └─ ui/                # boardView.ts / inventoryView.ts / main.ts / otrio.css
+│        ├─ online/            # types.ts / roomService.ts（collection: gobbletGames）
+│        └─ ui/                # boardView.ts / inventoryView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / gobblet.css
 ```
 
 「ゲームごとにロジックを分離し、共通部分をshared化する」「logic層はDOM非依存の純粋関数群にし、ui層がそれを使って画面を組み立てる」という2つの方針を一貫させている。これによりロジック層はVitestで単体テストしやすく、UI層はlogic層のAPIを呼び出すだけのシンプルな構成になっている。
@@ -60,13 +74,30 @@
 DOM要素を組み立てて返す関数として実装（クラスではなく関数ベース）。
 - `header.ts`: `renderHeader({ gameTitle? })` — ゲーム画面では戻り導線を追加表示。
 - `difficultySelector.ts`: `renderDifficultySelector({ gameName, onSelect })` — 弱/中/強ボタンを描画し、選択時にコールバック。
-- `resultModal.ts`: `showResultModal({ result, onReplay })` — オーバーレイ＋モーダルを`document.body`に直接追加し、「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。
+- `resultBanner.ts`: `showResultBanner({ container, result, onReplay })` — 呼び出し元が指定した`container`の先頭（`insertBefore(banner, container.firstChild)`）に結果バナーを挿入する。「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。当初は`resultModal.ts`という名前で`document.body`に`position: fixed`のオーバーレイを追加する実装だったが、勝敗確定後に最終盤面が見えなくなる問題があったため、盤面を隠さない非モーダルのバナー方式にリネーム・再実装した（詳細は後述）。
+- `rulesScreen.ts`: `renderRulesScreen({ gameName, sections, onBack })` — 各ゲームのルール説明画面を共通レイアウトで描画。
+
+なお五五将棋の成り選択ポップアップ（`src/games/gogo-shogi/ui/promotionPrompt.ts`）は「選択を強制する」用途のブロッキングモーダルであるため、`resultBanner.ts`への変更後も`.modal-overlay`/`.modal`クラス（`document.body`への全画面オーバーレイ）を引き続き使用している。結果表示とは目的が異なるため、あえて統一しなかった。
 
 ### shared/styles/theme.css
 CSSカスタムプロパティでデザイントークンを定義（`--color-bg`, `--color-surface`, `--color-accent` 等）。各ゲームのCSSは `:root { --color-accent: var(--color-accent-gomoku); }` のように自身のアクセントカラーで上書きするだけで、`.btn-primary` 等の共通クラスが自動的にそのゲームの配色になる。
 
 ### portal/main.ts
 `GameCardData[]` の配列にゲームを追加するだけでトップページのカード一覧に反映される設計（今後のゲーム追加を見据えた拡張性）。
+
+### オンライン対戦ロビー画面（`ui/onlineScreen.ts`）の「ルームを作成する」UI
+全6ゲームで共通のDOM構造・CSSクラス（`online-panel*`）を使う設計だが、各ゲームディレクトリに個別実装している（型がゲームごとに異なる薄いUIのため、無理な共通コンポーネント化はしていない）。当初は「手番」トグルボタン列の直下に「公開ルームを作成」「非公開ルームを作成」という**即実行ボタン**を並べていたが、UXの見直しにより以下の構成に変更した（4.5節のgomokuの実装が基準形で、他5ゲームも同一パターン）。
+
+- `creatorColor`（先手/後手など）と`visibility`（公開/非公開）を、どちらも同じ見た目の**選択トグル**として`online-panel__group`（`online-panel__group-label`のラベル付き）でグルーピングする。
+- 実行は末尾の単一の「ルームを作成」ボタン（`online-panel__create-button`）でのみ行う。
+- `theme.css`に`.online-panel__group`（`margin-top`でグループ間の縦間隔を確保）を追加し、複数の`.online-panel__buttons`を縦に並べたときに隙間なく密着して見えていた問題を解消した。
+
+## 3.5 四目並べ・ゴブレット・ゴブラーズ追加時の設計判断
+
+`Docs/todo-feature.md`の要望を受けて追加した2ゲーム。それぞれ既存ゲームの設計パターンを踏襲しつつ、以下の点だけ新規に設計した。
+
+- **四目並べ**: 4.6節参照。五目並べの`logic/`をほぼそのまま複製し、`WIN_LENGTH`と評価関数の点数配分だけ変更した「最小差分の新規ゲーム」。
+- **ゴブレット・ゴブラーズ**: 7.2節参照。「駒を被せる」「盤上の駒を動かす」という他ゲームにないメカニクスのため、`Cell`をスタック（`Piece[]`）として設計し、Firestore保存用のシリアライズも専用方式（27要素フラット配列）を新規に用意した。
 
 ## 4. 五目並べのロジック設計
 
@@ -111,6 +142,15 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 認証なし・性善説ベースの簡易ルール（「今が誰の手番か」はルール側では判別できないため、手番制御はクライアントの自己申告に依存する）。最低限のガードとして、`board`が225要素の配列であること、`visibility`/`status`が想定値であること、`status`が`finished`になったドキュメントへの追加更新を禁止すること、を`firestore.rules`でチェックしている。
 
 ロビーの公開ルーム一覧クエリ（`visibility`と`status`の等価条件2つ＋`createdAt`の`orderBy`）はFirestoreの複合インデックスを要求するため、`firestore.indexes.json`に定義してデプロイしている（未定義のままだとブラウザコンソールに`failed-precondition: The query requires an index`エラーが出る）。
+
+## 4.6 四目並べのロジック設計・オンライン対戦
+
+`Docs/todo-feature.md`の「五目並べと同じルールでいい」という要望どおり、五目並べの`logic/`（`board.ts`, `rules.ts`, `ai.ts`）をほぼそのまま複製した最小差分の新規ゲーム。
+
+- **`board.ts`**: gomokuと完全に同一（`BOARD_SIZE = 15`, `Stone`型など）。
+- **`rules.ts`**: `WIN_LENGTH`を`5`→`4`に変更するのみ。`checkWin`（直近着手起点で4方向走査）のロジックは変更なし。
+- **`ai.ts`**: `SCORE`定数のパターン評価を4連基準に1段階シフトした（`four`が最高評価点、以下`openThree`/`three`/`openTwo`/`two`/`one`）。弱/中/強の3段階構成・候補手絞り込み（`CANDIDATE_RADIUS`）・ミニマックス+αβ（`HARD_SEARCH_DEPTH`/`HARD_BRANCH_LIMIT`）はgomokuと同じ値をそのまま踏襲。
+- **オンライン対戦**: gomokuの`online/`・`ui/onlineScreen.ts`・`ui/onlineGameScreen.ts`をコレクション名（`yonmokuGames`）と`winReason`（`'four-in-a-row' | 'resign'`）だけ変えて複製。盤面のシリアライズ（`toWireBoard`/`fromWireBoard`、225要素フラット配列）も同一。
 
 ## 5. 五五将棋のロジック設計
 
@@ -169,6 +209,16 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 - **中**: 深さ2のミニマックス＋簡易評価関数（ライン内の自分の石の数に応じたスコア、相手の石が1つでも混ざっているラインは0点）でカットオフ。
 - **強**: 深さ9（＝盤面を使い切るまで）のフルミニマックス＋αβ枝刈り。3×3は全探索が一瞬で終わるため事実上の完全読みになる。実装時にブラウザ上で最善手を指し続けて引き分けになることを確認済み。
 
+## 6.1 〇×ゲームのオンライン対戦
+
+五目並べ・五五将棋のオンライン対戦（4.5節・5.5節）と同じ構成（`online/types.ts`, `online/roomService.ts`, `ui/onlineScreen.ts`, `ui/onlineGameScreen.ts`）を踏襲し、以降のゲームで確立した改善（作成者による先手/後手選択、`winReason`による決着理由の出し分け）を最初から組み込んでいる。
+
+- **コレクション**: `tictactoeGames`。`RoomDoc`の`turn`/`players`は内部の`Stone`定数と統一した`'maru' | 'batsu'`で表現する。
+- **盤面のシリアライズ**: `Board`（`Stone[][]`、3×3）は五目並べと同じ理由（Firestoreのネスト配列非対応）で9要素にフラット化する（`toWireBoard`/`fromWireBoard`）。`Stone`は数値のためそのままフラット化できる。
+- **`roomService.createRoom(playerName, visibility, creatorColor)`**: 作成者が指定した色（`maru`/`batsu`）の枠にのみ自分の情報を入れ、もう一方を`null`のまま作成する。`joinRoom`は`!room.players.maru ? 'maru' : !room.players.batsu ? 'batsu' : null`のように**空いている方の色を動的に判定**して参加させる（作成者がどちらの色を選んでも参加者側のロジックを変えなくて済む）。
+- **`roomService.submitMove(roomId, row, col, color)`**: `runTransaction`内で「手番か」「空きマスか」を確認し、`checkWin`/`isBoardFull`（CPU対戦と共通の`logic/rules.ts`）で判定して`winReason: 'three-in-a-row'`を設定する。
+- **`firestore.rules`の`isValidNewTicTacToeRoom`**: 作成者がどちらの色を選んでもバリデーションが通るよう、`(players.maru is map && players.batsu == null) || (players.batsu is map && players.maru == null)`というOR条件にしている。
+
 ## 7. オートリオのロジック設計
 
 実在のボードゲーム「Otrio」の基本ルール（マスタールールなし）を実装。
@@ -190,6 +240,51 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 ### ui
 持ち駒選択→盤面クリックで着手確定、という操作フローは五五将棋の持ち駒選択パターンをそのまま踏襲。`InventoryView`（`HandView`相当）で自分/相手の持ち駒を表示し、`BoardView`は各マスに小・中・大3つの入れ子の四角形（`.otrio-slot--S/M/L`）を絶対配置で重ねて描画し、所有者に応じて色分けする。
 
+## 7.1 オートリオのオンライン対戦
+
+〇×ゲーム（6.1節）と同じ構成・同じ改善（先手/後手選択、`winReason`）を踏襲している。五五将棋と同様「持ち駒を持つ」ゲームだが、盤面自体の視点反転（五五将棋は自陣が常に手前に来るよう盤面を回転する）は不要なため、`BoardView`/`InventoryView`はCPU対戦のものをそのまま流用している。
+
+- **コレクション**: `otrioGames`。`turn`/`players`は`logic/board.ts`の`Player`型（`1 | 2`）をそのまま使う。Firestore上のマップキーは数値ではなく文字列になるため、`firestore.rules`側では`data.players['1']`/`['2']`とブラケット記法でアクセスする。
+- **盤面のシリアライズ**: `Board`（`Cell[][]`、3×3）を9要素にフラット化するが、各要素`Cell`は`{ S, M, L }`を持つ**オブジェクト**であり配列ではないため、五目並べ等と違い要素ごとの追加変換は不要（外側の2次元→1次元の変換のみでFirestoreに保存できる）。
+- **持ち駒（inventory）**: `Record<Player, Record<Size, number>>`はネストしたオブジェクト（マップ）でありFirestoreにそのまま保存できる（五五将棋の`hand`と同じ扱い）。
+- **`roomService.submitMove(roomId, move, color)`**: CPU対戦と共通の`applyMove`→`checkWin`→`isGameOver`の順にロジックを適用し、勝敗が付けば`winReason: 'win'`、両者の持ち駒が尽きれば`winReason: 'draw'`を設定する。
+- **結果表示**: `winReason`が`'draw'`の場合のみ`outcome: 'draw'`として引き分け専用メッセージ（「持ち駒がなくなりました」）を表示する`buildResult`を`onlineGameScreen.ts`に実装。
+
+## 7.2 ゴブレット・ゴブラーズのロジック設計・オンライン対戦
+
+`Docs/todo-feature.md`の要望により追加。オートリオ（`src/games/otrio/`）とはCell構造が根本的に異なる（オートリオは全サイズが共存、ゴブレットは被せる＝隠す）ため、ロジック層は新規設計した。UIの持ち駒操作パターン・ディレクトリ構成はオートリオを踏襲している。
+
+### logic/board.ts
+```ts
+export interface Piece { owner: Player; size: Size; }
+export type Cell = Piece[]; // 下から上へ積んだ駒のスタック。空配列=空きマス
+export type Board = Cell[][];
+export interface GameState { board: Board; inventory: Record<Player, Inventory>; turn: Player; history: string[]; }
+```
+`Cell`を配列（スタック）として表現することで、「自分より小さい駒に被せて置く」「盤上の駒を動かして下の駒を露出させる」という他ゲームにないメカニクスを自然に表現している。`topOf(cell)`ヘルパーで「一番上に見えている駒」を取得する（勝敗判定・描画・合法手判定すべてがこれを使う）。`history`は千日手（同一局面の繰り返し）判定用の局面キー履歴で、`positionKey(state)`が盤面+持ち駒+手番から文字列キーを生成する。
+
+### logic/rules.ts
+```ts
+export type Move =
+  | { kind: 'place'; row: number; col: number; size: Size }
+  | { kind: 'move'; from: { row: number; col: number }; to: { row: number; col: number } };
+```
+`getLegalMoves`は「新規配置」（持ち駒があり、置き先が空きまたはより小さい駒の上）と「移動」（盤上の自分の駒を、空きまたはより小さい駒の上へ）の両方を列挙する。`checkWin`は8ライン（オートリオと同じ`LINES`定義を流用）それぞれで`topOf(cell)?.owner`が全て同一プレイヤーかを判定する（駒のサイズは問わない）。
+
+`checkRepetition(history)`は同一局面キーが3回出現したら引き分けとする。**本家ルールには存在しない実装上のセーフガード**で、駒を動かし続けるだけで理論上は対局が終わらなくなり得るため、五五将棋の千日手判定と同じ考え方で追加した（コード内コメントにもその旨を明記）。
+
+### logic/ai.ts
+オートリオの評価関数（ライン内の「相手に阻害されていない自分の駒数」をスコア化）と同じ考え方を、`topOwner`基準に読み替えて実装。弱=即勝ち/即阻止優先+ランダム、中=深さ2ネガマックス、強=深さ4・評価値上位12手に絞ったネガマックス+αβ枝刈り（配置+移動で分岐数がオートリオより多いため、`HARD_BRANCH_LIMIT`はオートリオの10より少し多い12に設定）。
+
+### online/roomService.ts のシリアライズ（他ゲームと異なる独自方式）
+`Cell`が配列（スタック、最大3要素）であるため、他ゲームの単純な「2次元配列→1次元配列」フラット化だけでは対応できない（Firestoreはネスト配列を扱えない）。そのため、各`Cell`を**固定長3要素**の数値配列（下から上への駒を`所有者*10+サイズ番号+1`でエンコード、無ければ`0`）に変換し、9マス×3要素＝27要素のフラット配列として保存する専用の`toWireBoard`/`fromWireBoard`を実装した。`inventory`はネストしたオブジェクトのためそのまま保存でき、`history`（`string[]`）もFirestoreの通常の配列として保存できる。
+
+### ui/boardView.ts（新規実装）
+オートリオの`BoardView`は各マスに小中大3層を重ねて常時表示するが、ゴブレット・ゴブラーズは「被せると下の駒が隠れる」ため、`topOf(cell)`の結果だけを1つの図形として描画する。盤上の自分の駒をクリックして選択すると、選択中のマス（`gobblet-cell--selected`）と移動先候補（`gobblet-cell--legal`、`getLegalMoves`から動的に計算）をハイライトする。
+
+### ui/main.ts の操作フロー
+`selectedSize`（持ち駒選択）と`selectedSource`（盤上の駒選択）の2つの状態を排他的に管理し、`handleCellClick`が両方のケースを1つの関数で分岐処理する。持ち駒を選んで盤面をクリックすれば新規配置、盤上の自分の駒を選んで別マスをクリックすれば移動、という2系統の操作を同じクリックハンドラで受ける設計。オンライン対戦（`ui/onlineGameScreen.ts`）も同じ状態管理・分岐ロジックをFirestoreの`RoomDoc`に対して行う。
+
 ## 8. UI層の設計パターン
 
 両ゲームともUI層は以下の責務分担で統一している。
@@ -206,21 +301,23 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテストを作成している（UI層のE2Eテストは対象外）。
 
 - 五目並べ: `rules.test.ts`（5連判定・引き分け判定）、`ai.test.ts`（弱/強AIの必勝手発見）
+- 四目並べ: `rules.test.ts`（4連判定）、`ai.test.ts`（弱/強AIの必勝手発見、5連ではなく4連基準であること）
+- ゴブレット・ゴブラーズ: `rules.test.ts`（被せ配置の可否、被せ後も下の駒が残ること、移動で移動元が空く/下の駒が現れること、勝敗判定、`checkRepetition`の千日手判定）、`ai.test.ts`（各難易度が合法手を返すスモークテスト、勝てる手を見逃さないこと）
 - 五五将棋: `rules.test.ts`（初期局面の王手なし判定、二歩、行き所のない駒、歩の成り強制、王手放置の禁止、詰み判定、`applyMove`の持ち駒変換）、`ai.test.ts`（各難易度が初期局面から合法手を返すスモークテスト、`checkRepetition`の千日手・連続王手判定）
 
 特に五五将棋は「二歩」「打ち歩詰め」「行き所のない駒」「千日手の特殊ルール」など見落としやすいルールが多いため、実装時に個別のテストケースを用意して正しさを担保した。
 
 ## 10. ビルド・デプロイ構成
 
-- `vite.config.ts`: `base: '/board-game-farm/'`、5エントリのMulti-Page構成。
+- `vite.config.ts`: `base: '/board-game-farm/'`、7エントリのMulti-Page構成。
 - `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
 - ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
 
 ## 11. 今後の拡張ポイント（Phase 3向けメモ）
 
-五目並べ・五五将棋はオンライン対戦まで実装済み（Phase 2完了）。〇×ゲーム・オートリオは今回CPU対戦のみで、オンライン対戦は未着手（必要になれば5五将棋の`online/`実装パターンをそのまま踏襲できる）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが2ゲーム分実証済みなのでそのまま踏襲できる:
+6ゲームすべてでCPU対戦・オンライン対戦の両方が実装済み（Phase 2完了）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが6ゲーム分実証済みなのでそのまま踏襲できる:
 
 - `shared/firebase.ts`（Firestore初期化）は共通利用し、`shared/onlineRoomCode.ts`（ルーム番号生成）も共通利用する。
 - ゲーム固有の状態はそのゲーム専用のFirestoreコレクションに保存する（`games`, `shogiGames`のように分離）。
-- 盤面が2次元配列の場合はFirestoreがネスト配列を扱えないため、`toWireBoard`/`fromWireBoard`パターンでフラット配列化する（4.5節・5.5節参照）。
-- ロビー画面（`ui/onlineScreen.ts`）・対局画面（`ui/onlineGameScreen.ts`）はゲームごとに個別実装し、`ui/main.ts`側で`activeDispose`パターンによりFirestore購読のライフサイクルを管理する。
+- 盤面が2次元配列の場合はFirestoreがネスト配列を扱えないため、`toWireBoard`/`fromWireBoard`パターンでフラット配列化する（4.5節・5.5節参照）。盤面の各マスが配列（スタック等）を持つ場合は単純なフラット化では対応できないため、ゴブレット・ゴブラーズ（7.2節）のような固定長エンコード方式を検討する。
+- ロビー画面（`ui/onlineScreen.ts`）・対局画面（`ui/onlineGameScreen.ts`）はゲームごとに個別実装し、`ui/main.ts`側で`activeDispose`パターンによりFirestore購読のライフサイクルを管理する。「ルームを作成する」UIは設定（先手/後手・公開/非公開など）をすべて選んでから単一の実行ボタンを押す構成にする（3節参照）。

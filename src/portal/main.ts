@@ -81,6 +81,34 @@ const OTRIO_ICON = `
   </svg>
 `;
 
+const YONMOKU_ICON = `
+  <svg viewBox="0 0 48 48" fill="none">
+    <g stroke="var(--color-text-muted)" stroke-opacity="0.35" stroke-width="1">${GRID_LINES}</g>
+    <g fill="currentColor">
+      <circle cx="9" cy="9" r="3.6" />
+      <circle cx="17" cy="17" r="3.6" />
+      <circle cx="25" cy="25" r="3.6" />
+      <circle cx="33" cy="33" r="3.6" />
+    </g>
+  </svg>
+`;
+
+const GOBBLET_ICON = `
+  <svg viewBox="0 0 48 48" fill="none">
+    <g stroke="var(--color-text-muted)" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round">
+      <line x1="17" y1="4" x2="17" y2="44" />
+      <line x1="31" y1="4" x2="31" y2="44" />
+      <line x1="4" y1="17" x2="44" y2="17" />
+      <line x1="4" y1="31" x2="44" y2="31" />
+    </g>
+    <rect x="4" y="31" width="10" height="10" rx="2" fill="none" stroke="var(--color-text-muted)" stroke-width="1.6" />
+    <g transform="translate(24,17)">
+      <rect x="-11" y="-11" width="22" height="22" rx="3" fill="none" stroke="var(--color-text-muted)" stroke-opacity="0.5" stroke-width="1.6" />
+      <rect x="-7" y="-7" width="14" height="14" rx="2.5" fill="currentColor" />
+    </g>
+  </svg>
+`;
+
 // 今後ゲームが増えた場合はここに追加するだけでカードが増える
 const GAMES: GameCardData[] = [
   {
@@ -108,7 +136,7 @@ const GAMES: GameCardData[] = [
     description: '3×3の盤に〇×を交互に置き、3つ並べたら勝ち。',
     href: './tictactoe.html',
     accentVar: '--color-accent-tictactoe',
-    online: false,
+    online: true,
   },
   {
     id: 'otrio',
@@ -117,7 +145,25 @@ const GAMES: GameCardData[] = [
     description: '3×3の盤に小・中・大の駒を重ねて置く陣取りゲーム。',
     href: './otrio.html',
     accentVar: '--color-accent-otrio',
-    online: false,
+    online: true,
+  },
+  {
+    id: 'yonmoku',
+    icon: YONMOKU_ICON,
+    title: '四目並べ',
+    description: '五目並べと同じ盤で、4つ石を並べたら勝ち。',
+    href: './yonmoku.html',
+    accentVar: '--color-accent-yonmoku',
+    online: true,
+  },
+  {
+    id: 'gobblet',
+    icon: GOBBLET_ICON,
+    title: 'ゴブレット・ゴブラーズ',
+    description: '小・中・大の駒を被せたり動かしたりして3つ並べる陣取りゲーム。',
+    href: './gobblet.html',
+    accentVar: '--color-accent-gobblet',
+    online: true,
   },
 ];
 

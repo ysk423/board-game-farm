@@ -3,17 +3,16 @@ import { renderDifficultySelector } from '../../../shared/components/difficultyS
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
-import { createInitialState, type GameState, type Player, type Size } from '../logic/board';
-import { applyMove, checkWin, getLegalMoves, isGameOver, type Move } from '../logic/rules';
+import { BLACK, type Board, createEmptyBoard, type Stone, WHITE } from '../logic/board';
+import { checkWin, isBoardFull } from '../logic/rules';
 import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
-import { InventoryView } from './inventoryView';
 import { renderOnlineScreen } from './onlineScreen';
 import { renderOnlineGameScreen } from './onlineGameScreen';
+import type { StoneColor } from '../online/types';
 
-const GAME_NAME = 'オートリオ';
-const HUMAN: Player = 1; // プレイヤーは先手固定
-const CPU: Player = 2;
+const GAME_NAME = '四目並べ';
+// CPUの着手を即座に反映すると考えているように見えないため、わずかに間を置く
 const CPU_THINK_DELAY_MS = 300;
 
 // オンライン対戦画面はFirestoreの購読(onSnapshot)を持つため、画面遷移のたびに解除する
@@ -27,7 +26,7 @@ function clearScreen(container: HTMLElement): void {
   container.innerHTML = '';
 }
 
-function main(): void {
+function main() {
   const app = document.getElementById('app');
   if (!app) return;
 
@@ -58,7 +57,7 @@ function showModeSelectScreen(container: HTMLElement): void {
   cpuButton.type = 'button';
   cpuButton.className = 'btn btn-primary';
   cpuButton.textContent = 'CPU対戦';
-  cpuButton.addEventListener('click', () => showTopScreen(container));
+  cpuButton.addEventListener('click', () => showDifficultyScreen(container));
   buttonRow.appendChild(cpuButton);
 
   const onlineButton = document.createElement('button');
@@ -79,7 +78,40 @@ function showModeSelectScreen(container: HTMLElement): void {
   container.appendChild(section);
 }
 
-function showTopScreen(container: HTMLElement): void {
+function showRulesScreen(container: HTMLElement): void {
+  clearScreen(container);
+  container.appendChild(
+    renderRulesScreen({
+      gameName: GAME_NAME,
+      sections: [
+        {
+          title: '基本ルール',
+          body: [
+            '15×15マスの盤に、2人が交互に石を置いていきます（五目並べと同じ盤・同じ配置ルールです）。',
+            '縦・横・斜めのいずれかの方向に、自分の色の石を4つ以上連続して並べた方が勝ちです。',
+          ],
+        },
+        {
+          title: '禁じ手・引き分け',
+          body: [
+            '禁じ手はありません。5つ以上連続しても勝ちになります。',
+            '盤面がすべて埋まっても勝敗が決まらない場合は引き分けです。',
+          ],
+        },
+        {
+          title: '対戦モード',
+          body: [
+            'CPU対戦では弱・中・強の3段階の難易度から選べます。',
+            'オンライン対戦では、ルームを作成して番号を伝えるか、公開ルーム一覧から相手を見つけて対戦できます。',
+          ],
+        },
+      ],
+      onBack: () => showModeSelectScreen(container),
+    }),
+  );
+}
+
+function showDifficultyScreen(container: HTMLElement): void {
   clearScreen(container);
   container.appendChild(
     renderDifficultySelector({
@@ -98,7 +130,7 @@ function showOnlineScreen(container: HTMLElement): void {
   activeDispose = view.dispose;
 }
 
-function showOnlineGameScreen(container: HTMLElement, roomId: string, color: Player): void {
+function showOnlineGameScreen(container: HTMLElement, roomId: string, color: StoneColor): void {
   clearScreen(container);
   const view = renderOnlineGameScreen({
     roomId,
@@ -109,58 +141,22 @@ function showOnlineGameScreen(container: HTMLElement, roomId: string, color: Pla
   activeDispose = view.dispose;
 }
 
-function showRulesScreen(container: HTMLElement): void {
-  clearScreen(container);
-  container.appendChild(
-    renderRulesScreen({
-      gameName: GAME_NAME,
-      sections: [
-        {
-          title: '基本ルール',
-          body: [
-            '3×3マスの盤を使い、各マスには小・中・大それぞれのサイズの駒を1つずつ重ねて置くことができます。',
-            '各プレイヤーは小・中・大の駒を3個ずつ、合計9個持っています。自分の手番に、持ち駒の中から好きなサイズを選び、そのサイズがまだ空いているマスへ置きます。',
-          ],
-        },
-        {
-          title: '勝利条件',
-          body: [
-            '同じサイズの駒が縦・横・斜めのいずれかに3つ並ぶと勝ちです。',
-            'また、1つのマスに自分の小・中・大の駒すべてが揃う（トリオ）と、それだけでも勝ちになります。',
-          ],
-        },
-        {
-          title: '引き分け',
-          body: ['両者の持ち駒がすべてなくなっても勝敗が決まらない場合は引き分けです。'],
-        },
-      ],
-      onBack: () => showModeSelectScreen(container),
-    }),
-  );
-}
-
 function startGame(container: HTMLElement, difficulty: Difficulty): void {
-  container.innerHTML = '';
+  clearScreen(container);
 
-  let state: GameState = createInitialState();
-  let selectedSize: Size | null = null;
+  const board: Board = createEmptyBoard();
+  let turn: Stone = BLACK; // プレイヤーは黒（先手）固定
   let gameOver = false;
 
   const status = document.createElement('p');
-  status.className = 'otrio-status';
+  status.className = 'yonmoku-status';
   container.appendChild(status);
 
-  const layout = document.createElement('div');
-  layout.className = 'otrio-layout';
-
-  const cpuInventoryView = new InventoryView('CPUの持ち駒', null);
-  const boardView = new BoardView((row, col) => handleCellClick(row, col), HUMAN);
-  const humanInventoryView = new InventoryView('あなたの持ち駒', (size) => handleSizeClick(size));
-
-  layout.appendChild(cpuInventoryView.element);
-  layout.appendChild(boardView.element);
-  layout.appendChild(humanInventoryView.element);
-  container.appendChild(layout);
+  const boardView = new BoardView((row, col) => {
+    if (gameOver || turn !== BLACK || board[row][col] !== 0) return;
+    playMove(row, col, BLACK);
+  });
+  container.appendChild(boardView.element);
 
   const resignButton = document.createElement('button');
   resignButton.type = 'button';
@@ -171,68 +167,42 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     finish('lose', '投了しました');
   });
   const actions = document.createElement('div');
-  actions.className = 'otrio-actions';
+  actions.className = 'yonmoku-actions';
   actions.appendChild(resignButton);
   container.appendChild(actions);
 
-  refresh();
-
-  function handleSizeClick(size: Size): void {
-    if (gameOver || state.turn !== HUMAN) return;
-    if (state.inventory[HUMAN][size] <= 0) return;
-    selectedSize = selectedSize === size ? null : size;
-    refresh();
-  }
-
-  function handleCellClick(row: number, col: number): void {
-    if (gameOver || state.turn !== HUMAN || !selectedSize) return;
-    const isLegal = getLegalMoves(state).some((m) => m.row === row && m.col === col && m.size === selectedSize);
-    if (!isLegal) return;
-
-    const move: Move = { row, col, size: selectedSize };
-    selectedSize = null;
-    playMove(move, HUMAN);
-  }
-
-  function playMove(move: Move, mover: Player): void {
-    state = applyMove(state, move);
-    refresh();
-
-    if (checkWin(state.board, mover)) {
-      finish(
-        mover === HUMAN ? 'win' : 'lose',
-        mover === HUMAN ? 'あなたの勝利です！' : 'CPUの勝利です',
-      );
-      return;
-    }
-    if (isGameOver(state)) {
-      finish('draw', '持ち駒がなくなりました');
-      return;
-    }
-
-    if (state.turn === CPU) {
-      boardView.setInteractive(false);
-      window.setTimeout(() => {
-        const cpuMove = getCpuMove(state, difficulty);
-        playMove(cpuMove, CPU);
-      }, CPU_THINK_DELAY_MS);
-    }
-  }
+  boardView.render(board, null);
+  updateStatus();
 
   function updateStatus(): void {
-    if (gameOver) {
-      status.textContent = '';
-      return;
-    }
-    status.textContent = state.turn === HUMAN ? 'あなたの番です' : 'CPU思考中…';
+    if (gameOver) return;
+    status.textContent = turn === BLACK ? 'あなたの番です（黒）' : 'CPU思考中…';
   }
 
-  function refresh(): void {
-    boardView.render(state);
-    cpuInventoryView.render(state.inventory[CPU], null);
-    humanInventoryView.render(state.inventory[HUMAN], selectedSize);
-    boardView.setInteractive(!gameOver && state.turn === HUMAN);
+  function playMove(row: number, col: number, stone: Stone): void {
+    board[row][col] = stone;
+    boardView.render(board, { row, col });
+
+    if (checkWin(board, row, col)) {
+      finish(stone === BLACK ? 'win' : 'lose', stone === BLACK ? 'あなたの4連勝利です！' : 'CPUが4連を揃えました');
+      return;
+    }
+    if (isBoardFull(board)) {
+      finish('draw', '盤面が埋まりました');
+      return;
+    }
+
+    turn = stone === BLACK ? WHITE : BLACK;
     updateStatus();
+
+    if (turn === WHITE) {
+      boardView.setInteractive(false);
+      window.setTimeout(() => {
+        const move = getCpuMove(board, difficulty, WHITE, BLACK);
+        boardView.setInteractive(true);
+        playMove(move.row, move.col, WHITE);
+      }, CPU_THINK_DELAY_MS);
+    }
   }
 
   function finish(outcome: GameOutcome, message: string): void {
@@ -243,7 +213,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     showResultBanner({
       container,
       result: { outcome, message },
-      onReplay: () => showTopScreen(container),
+      onReplay: () => showDifficultyScreen(container),
     });
   }
 }

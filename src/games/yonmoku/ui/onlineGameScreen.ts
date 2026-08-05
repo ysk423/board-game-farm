@@ -34,7 +34,7 @@ function buildResult(room: RoomDoc, myColor: StoneColor): { outcome: GameOutcome
   const winnerColor = room.winner as StoneColor;
   return {
     outcome: iWon ? 'win' : 'lose',
-    message: iWon ? 'あなたの5連勝利です！' : `${colorLabel(winnerColor, room)}が5連を揃えました`,
+    message: iWon ? 'あなたの4連勝利です！' : `${colorLabel(winnerColor, room)}が4連を揃えました`,
   };
 }
 
@@ -52,7 +52,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   wrapper.appendChild(roomInfo);
 
   const status = document.createElement('p');
-  status.className = 'gomoku-status';
+  status.className = 'yonmoku-status';
   wrapper.appendChild(status);
 
   const boardView = new BoardView((row, col) => {
@@ -73,7 +73,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     resignRoom(roomId, color).catch((error) => console.error(error));
   });
   const actions = document.createElement('div');
-  actions.className = 'gomoku-actions';
+  actions.className = 'yonmoku-actions';
   actions.appendChild(resignButton);
   wrapper.appendChild(actions);
 

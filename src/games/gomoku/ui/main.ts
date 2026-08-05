@@ -1,6 +1,6 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
-import { showResultModal } from '../../../shared/components/resultModal';
+import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { BLACK, type Board, createEmptyBoard, type Stone, WHITE } from '../logic/board';
@@ -210,7 +210,8 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     boardView.setInteractive(false);
     resignButton.disabled = true;
     status.textContent = '';
-    showResultModal({
+    showResultBanner({
+      container,
       result: { outcome, message },
       onReplay: () => showDifficultyScreen(container),
     });

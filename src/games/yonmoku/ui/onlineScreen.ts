@@ -10,8 +10,7 @@ export interface OnlineScreenView {
   dispose: () => void;
 }
 
-// オンライン対戦のロビー画面。名前入力・ルーム作成（公開/非公開）・公開ルーム一覧・
-// ルーム番号での参加、をひとつの画面にまとめる
+// オンライン対戦のロビー画面（五目並べのonlineScreen.tsと同じ構成）
 export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenView {
   const wrapper = document.createElement('div');
 

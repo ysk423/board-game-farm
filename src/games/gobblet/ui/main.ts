@@ -3,15 +3,15 @@ import { renderDifficultySelector } from '../../../shared/components/difficultyS
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
-import { createInitialState, type GameState, type Player, type Size } from '../logic/board';
-import { applyMove, checkWin, getLegalMoves, isGameOver, type Move } from '../logic/rules';
+import { createInitialState, topOf, type GameState, type Player, type Size } from '../logic/board';
+import { applyMove, checkRepetition, checkWin, getLegalMoves, type Move } from '../logic/rules';
 import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
 import { InventoryView } from './inventoryView';
 import { renderOnlineScreen } from './onlineScreen';
 import { renderOnlineGameScreen } from './onlineGameScreen';
 
-const GAME_NAME = 'オートリオ';
+const GAME_NAME = 'ゴブレット・ゴブラーズ';
 const HUMAN: Player = 1; // プレイヤーは先手固定
 const CPU: Player = 2;
 const CPU_THINK_DELAY_MS = 300;
@@ -118,20 +118,30 @@ function showRulesScreen(container: HTMLElement): void {
         {
           title: '基本ルール',
           body: [
-            '3×3マスの盤を使い、各マスには小・中・大それぞれのサイズの駒を1つずつ重ねて置くことができます。',
-            '各プレイヤーは小・中・大の駒を3個ずつ、合計9個持っています。自分の手番に、持ち駒の中から好きなサイズを選び、そのサイズがまだ空いているマスへ置きます。',
+            '3×3マスの盤を使います。各プレイヤーは小・中・大の駒を2個ずつ、合計6個持っています。',
+            '自分の手番には「持ち駒を新しく置く」か「盤上にある自分の駒を動かす」のどちらかを行います。',
           ],
         },
         {
-          title: '勝利条件',
+          title: '被せるルール',
           body: [
-            '同じサイズの駒が縦・横・斜めのいずれかに3つ並ぶと勝ちです。',
-            'また、1つのマスに自分の小・中・大の駒すべてが揃う（トリオ）と、それだけでも勝ちになります。',
+            '駒は、空いているマスだけでなく、自分より小さい駒の上にも被せて置けます（相手の駒でも自分の駒でも構いません）。',
+            '被せられた駒はその場に残ったまま隠れます。上の駒が動けば、また見えるようになります。',
           ],
         },
         {
-          title: '引き分け',
-          body: ['両者の持ち駒がすべてなくなっても勝敗が決まらない場合は引き分けです。'],
+          title: '移動するルール',
+          body: [
+            '盤上にある自分の駒（一番上に見えている駒）は、空いているマスか自分より小さい駒の上へ動かせます。',
+            '駒を動かすと、元のマスに他の駒が隠れていればそれが見えるようになります。',
+          ],
+        },
+        {
+          title: '勝利条件・引き分け',
+          body: [
+            '一番上に見えている自分の駒が、縦・横・斜めのいずれかに3つ並ぶと勝ちです（駒のサイズが揃っている必要はありません）。',
+            '同じ局面が3回繰り返された場合は引き分けとします（本来のルールにはない、対局が終わらなくなることを防ぐための措置です）。',
+          ],
         },
       ],
       onBack: () => showModeSelectScreen(container),
@@ -144,14 +154,15 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
 
   let state: GameState = createInitialState();
   let selectedSize: Size | null = null;
+  let selectedSource: { row: number; col: number } | null = null;
   let gameOver = false;
 
   const status = document.createElement('p');
-  status.className = 'otrio-status';
+  status.className = 'gobblet-status';
   container.appendChild(status);
 
   const layout = document.createElement('div');
-  layout.className = 'otrio-layout';
+  layout.className = 'gobblet-layout';
 
   const cpuInventoryView = new InventoryView('CPUの持ち駒', null);
   const boardView = new BoardView((row, col) => handleCellClick(row, col), HUMAN);
@@ -171,7 +182,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     finish('lose', '投了しました');
   });
   const actions = document.createElement('div');
-  actions.className = 'otrio-actions';
+  actions.className = 'gobblet-actions';
   actions.appendChild(resignButton);
   container.appendChild(actions);
 
@@ -181,17 +192,65 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     if (gameOver || state.turn !== HUMAN) return;
     if (state.inventory[HUMAN][size] <= 0) return;
     selectedSize = selectedSize === size ? null : size;
+    selectedSource = null;
     refresh();
   }
 
   function handleCellClick(row: number, col: number): void {
-    if (gameOver || state.turn !== HUMAN || !selectedSize) return;
-    const isLegal = getLegalMoves(state).some((m) => m.row === row && m.col === col && m.size === selectedSize);
-    if (!isLegal) return;
+    if (gameOver || state.turn !== HUMAN) return;
 
-    const move: Move = { row, col, size: selectedSize };
+    if (selectedSize) {
+      const move = getLegalMoves(state).find(
+        (m): m is Extract<Move, { kind: 'place' }> =>
+          m.kind === 'place' && m.row === row && m.col === col && m.size === selectedSize,
+      );
+      if (move) {
+        selectedSize = null;
+        playMove(move, HUMAN);
+        return;
+      }
+    }
+
+    if (selectedSource) {
+      if (selectedSource.row === row && selectedSource.col === col) {
+        selectedSource = null;
+        refresh();
+        return;
+      }
+      const from = selectedSource;
+      const move = getLegalMoves(state).find(
+        (m): m is Extract<Move, { kind: 'move' }> =>
+          m.kind === 'move' && m.from.row === from.row && m.from.col === from.col && m.to.row === row && m.to.col === col,
+      );
+      if (move) {
+        selectedSource = null;
+        playMove(move, HUMAN);
+        return;
+      }
+    }
+
+    // 新たに盤上の自分の駒を選択する（対象外なら選択解除）
+    const top = topOf(state.board[row][col]);
     selectedSize = null;
-    playMove(move, HUMAN);
+    selectedSource = top && top.owner === HUMAN ? { row, col } : null;
+    refresh();
+  }
+
+  function computeLegalTargets(): Set<string> {
+    const targets = new Set<string>();
+    if (selectedSize) {
+      for (const m of getLegalMoves(state)) {
+        if (m.kind === 'place' && m.size === selectedSize) targets.add(`${m.row}-${m.col}`);
+      }
+    } else if (selectedSource) {
+      const from = selectedSource;
+      for (const m of getLegalMoves(state)) {
+        if (m.kind === 'move' && m.from.row === from.row && m.from.col === from.col) {
+          targets.add(`${m.to.row}-${m.to.col}`);
+        }
+      }
+    }
+    return targets;
   }
 
   function playMove(move: Move, mover: Player): void {
@@ -199,14 +258,11 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     refresh();
 
     if (checkWin(state.board, mover)) {
-      finish(
-        mover === HUMAN ? 'win' : 'lose',
-        mover === HUMAN ? 'あなたの勝利です！' : 'CPUの勝利です',
-      );
+      finish(mover === HUMAN ? 'win' : 'lose', mover === HUMAN ? 'あなたの勝利です！' : 'CPUの勝利です');
       return;
     }
-    if (isGameOver(state)) {
-      finish('draw', '持ち駒がなくなりました');
+    if (checkRepetition(state.history)) {
+      finish('draw', '同じ局面が繰り返されたため引き分けです');
       return;
     }
 
@@ -228,7 +284,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
   }
 
   function refresh(): void {
-    boardView.render(state);
+    boardView.render(state.board, { selected: selectedSource, legal: computeLegalTargets() });
     cpuInventoryView.render(state.inventory[CPU], null);
     humanInventoryView.render(state.inventory[HUMAN], selectedSize);
     boardView.setInteractive(!gameOver && state.turn === HUMAN);

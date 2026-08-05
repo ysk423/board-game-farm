@@ -1,16 +1,30 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
-import { showResultModal } from '../../../shared/components/resultModal';
+import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { BATSU, type Board, createEmptyBoard, MARU, type Stone } from '../logic/board';
 import { checkWin, isBoardFull } from '../logic/rules';
 import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
+import { renderOnlineScreen } from './onlineScreen';
+import { renderOnlineGameScreen } from './onlineGameScreen';
+import type { StoneColor } from '../online/types';
 
 const GAME_NAME = '〇×ゲーム';
 // CPUの着手を即座に反映すると考えているように見えないため、わずかに間を置く
 const CPU_THINK_DELAY_MS = 300;
+
+// オンライン対戦画面はFirestoreの購読(onSnapshot)を持つため、画面遷移のたびに解除する
+let activeDispose: (() => void) | null = null;
+
+function clearScreen(container: HTMLElement): void {
+  if (activeDispose) {
+    activeDispose();
+    activeDispose = null;
+  }
+  container.innerHTML = '';
+}
 
 function main() {
   const app = document.getElementById('app');
@@ -22,28 +36,80 @@ function main() {
   container.className = 'container';
   app.appendChild(container);
 
-  showTopScreen(container);
+  showModeSelectScreen(container);
+}
+
+function showModeSelectScreen(container: HTMLElement): void {
+  clearScreen(container);
+
+  const section = document.createElement('section');
+  section.className = 'card difficulty-selector';
+
+  const title = document.createElement('h2');
+  title.className = 'difficulty-selector__title';
+  title.textContent = `${GAME_NAME} - 対戦相手を選んでください`;
+  section.appendChild(title);
+
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'difficulty-selector__buttons';
+
+  const cpuButton = document.createElement('button');
+  cpuButton.type = 'button';
+  cpuButton.className = 'btn btn-primary';
+  cpuButton.textContent = 'CPU対戦';
+  cpuButton.addEventListener('click', () => showTopScreen(container));
+  buttonRow.appendChild(cpuButton);
+
+  const onlineButton = document.createElement('button');
+  onlineButton.type = 'button';
+  onlineButton.className = 'btn btn-primary';
+  onlineButton.textContent = 'オンライン対戦';
+  onlineButton.addEventListener('click', () => showOnlineScreen(container));
+  buttonRow.appendChild(onlineButton);
+
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール説明';
+  rulesButton.addEventListener('click', () => showRulesScreen(container));
+  buttonRow.appendChild(rulesButton);
+
+  section.appendChild(buttonRow);
+  container.appendChild(section);
 }
 
 function showTopScreen(container: HTMLElement): void {
-  container.innerHTML = '';
+  clearScreen(container);
   container.appendChild(
     renderDifficultySelector({
       gameName: GAME_NAME,
       onSelect: (difficulty) => startGame(container, difficulty),
     }),
   );
+}
 
-  const rulesButton = document.createElement('button');
-  rulesButton.type = 'button';
-  rulesButton.className = 'btn tictactoe-rules-button';
-  rulesButton.textContent = 'ルール説明';
-  rulesButton.addEventListener('click', () => showRulesScreen(container));
-  container.appendChild(rulesButton);
+function showOnlineScreen(container: HTMLElement): void {
+  clearScreen(container);
+  const view = renderOnlineScreen({
+    onRoomReady: (roomId, color) => showOnlineGameScreen(container, roomId, color),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
+}
+
+function showOnlineGameScreen(container: HTMLElement, roomId: string, color: StoneColor): void {
+  clearScreen(container);
+  const view = renderOnlineGameScreen({
+    roomId,
+    color,
+    onLeave: () => showOnlineScreen(container),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
 }
 
 function showRulesScreen(container: HTMLElement): void {
-  container.innerHTML = '';
+  clearScreen(container);
   container.appendChild(
     renderRulesScreen({
       gameName: GAME_NAME,
@@ -60,7 +126,7 @@ function showRulesScreen(container: HTMLElement): void {
           body: ['盤面がすべて埋まっても勝敗が決まらない場合は引き分けです。'],
         },
       ],
-      onBack: () => showTopScreen(container),
+      onBack: () => showModeSelectScreen(container),
     }),
   );
 }
@@ -134,7 +200,8 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     boardView.setInteractive(false);
     resignButton.disabled = true;
     status.textContent = '';
-    showResultModal({
+    showResultBanner({
+      container,
       result: { outcome, message },
       onReplay: () => showTopScreen(container),
     });

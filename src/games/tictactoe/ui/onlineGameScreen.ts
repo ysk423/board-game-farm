@@ -1,7 +1,7 @@
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import type { GameOutcome } from '../../../types/common';
 import { resign as resignRoom, subscribeToRoom, submitMove } from '../online/roomService';
-import type { RoomDoc, StoneColor } from '../online/types';
+import type { RoomDoc, StoneColor, WinReason } from '../online/types';
 import { BoardView } from './boardView';
 
 export interface OnlineGameScreenOptions {
@@ -18,7 +18,7 @@ export interface OnlineGameScreenView {
 function colorLabel(target: StoneColor, room: RoomDoc): string {
   const player = room.players[target];
   if (player && player.name) return player.name;
-  return target === 'black' ? '先手' : '後手';
+  return target === 'maru' ? '先手' : '後手';
 }
 
 function buildResult(room: RoomDoc, myColor: StoneColor): { outcome: GameOutcome; message: string } {
@@ -26,15 +26,16 @@ function buildResult(room: RoomDoc, myColor: StoneColor): { outcome: GameOutcome
     return { outcome: 'draw', message: '引き分けです' };
   }
   const iWon = room.winner === myColor;
+  const reason: WinReason | null = room.winReason;
 
-  if (room.winReason === 'resign') {
+  if (reason === 'resign') {
     return { outcome: iWon ? 'win' : 'lose', message: iWon ? '相手が投了しました' : '投了しました' };
   }
 
   const winnerColor = room.winner as StoneColor;
   return {
     outcome: iWon ? 'win' : 'lose',
-    message: iWon ? 'あなたの5連勝利です！' : `${colorLabel(winnerColor, room)}が5連を揃えました`,
+    message: iWon ? 'あなたの3並び勝利です！' : `${colorLabel(winnerColor, room)}が3並びを揃えました`,
   };
 }
 
@@ -52,7 +53,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   wrapper.appendChild(roomInfo);
 
   const status = document.createElement('p');
-  status.className = 'gomoku-status';
+  status.className = 'tictactoe-status';
   wrapper.appendChild(status);
 
   const boardView = new BoardView((row, col) => {
@@ -73,7 +74,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     resignRoom(roomId, color).catch((error) => console.error(error));
   });
   const actions = document.createElement('div');
-  actions.className = 'gomoku-actions';
+  actions.className = 'tictactoe-actions';
   actions.appendChild(resignButton);
   wrapper.appendChild(actions);
 

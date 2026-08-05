@@ -1,8 +1,9 @@
+import type { Player } from '../logic/board';
 import { createRoom, joinRoom, subscribeToOpenRooms } from '../online/roomService';
-import type { RoomSummary, StoneColor, Visibility } from '../online/types';
+import type { RoomSummary, Visibility } from '../online/types';
 
 export interface OnlineScreenOptions {
-  onRoomReady: (roomId: string, color: StoneColor) => void;
+  onRoomReady: (roomId: string, color: Player) => void;
 }
 
 export interface OnlineScreenView {
@@ -10,8 +11,7 @@ export interface OnlineScreenView {
   dispose: () => void;
 }
 
-// オンライン対戦のロビー画面。名前入力・ルーム作成（公開/非公開）・公開ルーム一覧・
-// ルーム番号での参加、をひとつの画面にまとめる
+// オンライン対戦のロビー画面（五目並べのonlineScreen.tsと同じ構成）
 export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenView {
   const wrapper = document.createElement('div');
 
@@ -23,7 +23,7 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.className = 'online-panel__input';
-  nameInput.placeholder = '未入力の場合は「先手」「後手」と表示されます';
+  nameInput.placeholder = '未入力の場合は「1P」「2P」と表示されます';
   nameInput.maxLength = 20;
   nameLabel.appendChild(nameInput);
   nameSection.appendChild(nameLabel);
@@ -36,7 +36,7 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   createTitle.textContent = 'ルームを作成する';
   createSection.appendChild(createTitle);
 
-  let creatorColor: StoneColor = 'black';
+  let creatorColor: Player = 1;
   let visibility: Visibility = 'public';
 
   const colorGroup = document.createElement('div');
@@ -49,27 +49,27 @@ export function renderOnlineScreen(options: OnlineScreenOptions): OnlineScreenVi
   const colorRow = document.createElement('div');
   colorRow.className = 'online-panel__buttons';
 
-  const blackToggle = document.createElement('button');
-  blackToggle.type = 'button';
-  blackToggle.className = 'btn btn-primary';
-  blackToggle.textContent = '黒番（先手）';
-  blackToggle.addEventListener('click', () => setCreatorColor('black'));
-  colorRow.appendChild(blackToggle);
+  const firstToggle = document.createElement('button');
+  firstToggle.type = 'button';
+  firstToggle.className = 'btn btn-primary';
+  firstToggle.textContent = '1P（先攻）';
+  firstToggle.addEventListener('click', () => setCreatorColor(1));
+  colorRow.appendChild(firstToggle);
 
-  const whiteToggle = document.createElement('button');
-  whiteToggle.type = 'button';
-  whiteToggle.className = 'btn';
-  whiteToggle.textContent = '白番（後手）';
-  whiteToggle.addEventListener('click', () => setCreatorColor('white'));
-  colorRow.appendChild(whiteToggle);
+  const secondToggle = document.createElement('button');
+  secondToggle.type = 'button';
+  secondToggle.className = 'btn';
+  secondToggle.textContent = '2P（後攻）';
+  secondToggle.addEventListener('click', () => setCreatorColor(2));
+  colorRow.appendChild(secondToggle);
 
   colorGroup.appendChild(colorRow);
   createSection.appendChild(colorGroup);
 
-  function setCreatorColor(color: StoneColor): void {
+  function setCreatorColor(color: Player): void {
     creatorColor = color;
-    blackToggle.classList.toggle('btn-primary', color === 'black');
-    whiteToggle.classList.toggle('btn-primary', color === 'white');
+    firstToggle.classList.toggle('btn-primary', color === 1);
+    secondToggle.classList.toggle('btn-primary', color === 2);
   }
 
   const visibilityGroup = document.createElement('div');

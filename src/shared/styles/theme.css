@@ -7,11 +7,14 @@
   --color-text: #e8eaed;
   --color-text-muted: #9aa0ac;
   --color-danger: #e85d5d;
+  --color-success: #3ddc97;
 
   --color-accent-gomoku: #ef4444;
   --color-accent-gogo-shogi: #e8a33d;
   --color-accent-tictactoe: #4d96ff;
   --color-accent-otrio: #c77dff;
+  --color-accent-yonmoku: #38bdf8;
+  --color-accent-gobblet: #f472b6;
   --color-accent-online: #2dd4bf; /* ゲーム固有色とは独立した「オンライン対戦」タグ専用の統一色 */
   --color-accent: var(--color-accent-gomoku);
 
@@ -160,6 +163,55 @@ a {
   justify-content: center;
 }
 
+/* 対局結果バナー。オーバーレイにせず画面内に差し込むことで最終盤面を隠さない */
+.result-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 14px 20px;
+  margin: 0 0 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.result-banner--win {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface));
+}
+
+.result-banner--lose {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 14%, var(--color-surface));
+}
+
+.result-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.result-banner__title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.result-banner__message {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.result-banner__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
 /* オンライン対戦（ロビー画面）共通パーツ。複数ゲームで共通利用する */
 .online-panel {
   max-width: 480px;
@@ -203,6 +255,27 @@ a {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* 「先手/後手」「公開/非公開」など、ルーム作成の設定項目ごとのグループ。
+   縦に並べたときに.online-panel__buttons同士が密着しないようmargin-topで間隔を確保する */
+.online-panel__group {
+  margin-top: 14px;
+}
+
+.online-panel__group:first-of-type {
+  margin-top: 0;
+}
+
+.online-panel__group-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 6px;
+}
+
+.online-panel__create-button {
+  margin-top: 16px;
+  width: 100%;
 }
 
 .online-panel__hint {
