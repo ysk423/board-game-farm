@@ -31,5 +31,34 @@ service cloud.firestore {
         && isValidBoard(request.resource.data.board);
       allow delete: if false;
     }
+
+    match /shogiGames/{roomId} {
+      function isValidShogiBoard(board) {
+        // 5x5盤をフラットな25要素の配列として保存している（Firestoreはネスト配列非対応のため）
+        return board is list && board.size() == 25;
+      }
+
+      function isValidNewShogiRoom(data) {
+        return data.board is list
+          && isValidShogiBoard(data.board)
+          && data.turn == 'sente'
+          && data.visibility in ['public', 'private']
+          && data.status == 'waiting'
+          && data.winner == null
+          && data.winReason == null
+          && data.players.sente is map
+          && data.players.gote == null
+          && data.history is list
+          && data.createdAt is timestamp
+          && data.expiresAt is timestamp;
+      }
+
+      allow read: if true;
+      allow create: if isValidNewShogiRoom(request.resource.data);
+      allow update: if resource.data.status != 'finished'
+        && request.resource.data.visibility == resource.data.visibility
+        && isValidShogiBoard(request.resource.data.board);
+      allow delete: if false;
+    }
   }
 }

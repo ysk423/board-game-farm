@@ -9,6 +9,9 @@ import { applyMove, checkRepetition, generateLegalMoves, type HistoryEntry, isCh
 import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
 import { HandView } from './handView';
+import { showPromotionPrompt } from './promotionPrompt';
+import { renderOnlineScreen } from './onlineScreen';
+import { renderOnlineGameScreen } from './onlineGameScreen';
 
 const GAME_NAME = '五五将棋';
 const HUMAN: Player = 'sente'; // プレイヤーは先手（王将）固定
@@ -16,6 +19,17 @@ const CPU: Player = 'gote';
 const CPU_THINK_DELAY_MS = 400;
 
 type Selection = { type: 'board'; pos: [number, number] } | { type: 'hand'; pieceType: HandPieceType } | null;
+
+// オンライン対戦画面はFirestoreの購読(onSnapshot)を持つため、画面遷移のたびに解除する
+let activeDispose: (() => void) | null = null;
+
+function clearScreen(container: HTMLElement): void {
+  if (activeDispose) {
+    activeDispose();
+    activeDispose = null;
+  }
+  container.innerHTML = '';
+}
 
 function main(): void {
   const app = document.getElementById('app');
@@ -27,11 +41,43 @@ function main(): void {
   container.className = 'container';
   app.appendChild(container);
 
-  showDifficultyScreen(container);
+  showModeSelectScreen(container);
+}
+
+function showModeSelectScreen(container: HTMLElement): void {
+  clearScreen(container);
+
+  const section = document.createElement('section');
+  section.className = 'card difficulty-selector';
+
+  const title = document.createElement('h2');
+  title.className = 'difficulty-selector__title';
+  title.textContent = `${GAME_NAME} - 対戦相手を選んでください`;
+  section.appendChild(title);
+
+  const buttonRow = document.createElement('div');
+  buttonRow.className = 'difficulty-selector__buttons';
+
+  const cpuButton = document.createElement('button');
+  cpuButton.type = 'button';
+  cpuButton.className = 'btn btn-primary';
+  cpuButton.textContent = 'CPU対戦';
+  cpuButton.addEventListener('click', () => showDifficultyScreen(container));
+  buttonRow.appendChild(cpuButton);
+
+  const onlineButton = document.createElement('button');
+  onlineButton.type = 'button';
+  onlineButton.className = 'btn btn-primary';
+  onlineButton.textContent = 'オンライン対戦';
+  onlineButton.addEventListener('click', () => showOnlineScreen(container));
+  buttonRow.appendChild(onlineButton);
+
+  section.appendChild(buttonRow);
+  container.appendChild(section);
 }
 
 function showDifficultyScreen(container: HTMLElement): void {
-  container.innerHTML = '';
+  clearScreen(container);
   container.appendChild(
     renderDifficultySelector({
       gameName: GAME_NAME,
@@ -40,8 +86,28 @@ function showDifficultyScreen(container: HTMLElement): void {
   );
 }
 
+function showOnlineScreen(container: HTMLElement): void {
+  clearScreen(container);
+  const view = renderOnlineScreen({
+    onRoomReady: (roomId, color) => showOnlineGameScreen(container, roomId, color),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
+}
+
+function showOnlineGameScreen(container: HTMLElement, roomId: string, color: Player): void {
+  clearScreen(container);
+  const view = renderOnlineGameScreen({
+    roomId,
+    color,
+    onLeave: () => showOnlineScreen(container),
+  });
+  container.appendChild(view.element);
+  activeDispose = view.dispose;
+}
+
 function startGame(container: HTMLElement, difficulty: Difficulty): void {
-  container.innerHTML = '';
+  clearScreen(container);
 
   let state: GameState = createInitialState();
   const history: HistoryEntry[] = [];
@@ -248,46 +314,6 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
       onReplay: () => showDifficultyScreen(container),
     });
   }
-}
-
-function showPromotionPrompt(onChoice: (promote: boolean) => void): void {
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-
-  const title = document.createElement('h2');
-  title.className = 'modal__title';
-  title.textContent = '成りますか？';
-  modal.appendChild(title);
-
-  const actions = document.createElement('div');
-  actions.className = 'modal__actions';
-
-  const yesButton = document.createElement('button');
-  yesButton.type = 'button';
-  yesButton.className = 'btn btn-primary';
-  yesButton.textContent = '成る';
-  yesButton.addEventListener('click', () => {
-    overlay.remove();
-    onChoice(true);
-  });
-
-  const noButton = document.createElement('button');
-  noButton.type = 'button';
-  noButton.className = 'btn';
-  noButton.textContent = '成らない';
-  noButton.addEventListener('click', () => {
-    overlay.remove();
-    onChoice(false);
-  });
-
-  actions.appendChild(yesButton);
-  actions.appendChild(noButton);
-  modal.appendChild(actions);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
 }
 
 main();
