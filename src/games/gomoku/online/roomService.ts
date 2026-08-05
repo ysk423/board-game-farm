@@ -13,22 +13,13 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../../shared/firebase';
+import { generateRoomId } from '../../../shared/onlineRoomCode';
 import { BLACK, BOARD_SIZE, WHITE, createEmptyBoard, type Board, type Stone } from '../logic/board';
 import { checkWin, isBoardFull } from '../logic/rules';
 import type { JoinRoomResult, RoomDoc, RoomSummary, StoneColor, Visibility } from './types';
 
 const ROOMS_COLLECTION = 'games';
-// 0/O/1/Iなど紛らわしい文字を除いたルーム番号用の文字集合
-const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // 放置ルームは3時間でFirestoreのTTLにより自動削除
-
-function generateRoomId(): string {
-  let id = '';
-  for (let i = 0; i < 6; i++) {
-    id += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
-  }
-  return id;
-}
 
 function stoneColorToStone(color: StoneColor): Stone {
   return color === 'black' ? BLACK : WHITE;

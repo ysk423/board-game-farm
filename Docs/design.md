@@ -137,16 +137,31 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 - **強**: 駒得＋玉安全度＋可動域（盤面支配）を使い、`HARD_DEPTH = 4`手読み。着手前に現在の評価値が`RESIGN_THRESHOLD = -2500`を下回っていれば投了を選択。
 - 探索の効率化として、着手候補は「捕獲した駒の価値×10＋成りボーナス」で降順に並べ替えてから探索することで、αβ枝刈りの効きを良くしている（`moveHeuristic` / `orderedLegalMoves`）。
 
+## 5.5 五五将棋のオンライン対戦（Phase 2）
+
+五目並べのオンライン対戦（4.5節）と同じ構成・同じ関数分割（`online/types.ts`, `online/roomService.ts`, `ui/onlineScreen.ts`, `ui/onlineGameScreen.ts`）を踏襲している。差分のみ記載する。
+
+- **コレクション分離**: `shogiGames`という別コレクションを使う。五目並べの`games`とはスキーマ（`hand`, `history`, `winReason`等の有無）が大きく異なるため、`firestore.rules`・`firestore.indexes.json`ともに別ブロック/別インデックスとして定義している。
+- **盤面のシリアライズ**: `BoardGrid`（`(Piece | null)[][]`、5x5）も5目並べと同じ理由（Firestoreのネスト配列非対応）で25要素にフラット化する。要素が数値でなくオブジェクト（`Piece | null`）になった以外は`toWireBoard`/`fromWireBoard`のロジックは同一パターン。
+- **持ち駒（hand）**: `Record<Player, Record<HandPieceType, number>>`はネストしたオブジェクト（マップ）であり配列ではないため、Firestoreにそのまま保存できる。変換不要。
+- **成り選択の共通化**: CPU対戦の`ui/main.ts`にあった`showPromotionPrompt`を`ui/promotionPrompt.ts`として切り出し、CPU対戦・オンライン対戦の両方から呼び出す形にリファクタした（成り選択のUIロジックはローカル/オンラインで完全に同一のため）。
+- **`roomService.submitMove(roomId, move, color)`**: `runTransaction`内で「手番か」を確認した後、`applyMove`→`positionKey`/`isInCheck`で履歴エントリを1件作成→`checkRepetition`（千日手）→`isCheckmate`（詰み）の順に既存rules.tsの関数をそのまま呼び出して決着を判定し、`board`/`hand`/`turn`/`history`/`status`/`winner`/`winReason`を1回の`tx.update`で書き込む。これはCPU対戦の`ui/main.ts`にあった`recordHistoryAndCheckEnd`とほぼ同じロジックである（呼び出し場所がFirestoreトランザクションの中になっただけ）。
+- **`roomService.resign(roomId, color)`**: 単純に`status: 'finished'`, `winner: 相手`, `winReason: 'resign'`を書き込むだけ。
+- **結果表示**: `winReason`（`checkmate` / `resign` / `sennichite` / `perpetual-check`）ごとにメッセージを出し分ける`buildResult`関数を`onlineGameScreen.ts`に実装。CPU対戦の`endGame`が使っていたメッセージ文言をそのまま踏襲している。
+
+### ルーム番号生成の共通化
+五目並べ実装時は`roomService.ts`内にルーム番号生成ロジックを直接書いていたが、五五将棋でも全く同じロジックが必要になったため`src/shared/onlineRoomCode.ts`に`generateRoomId()`として抽出し、両ゲームの`roomService.ts`から利用する形にリファクタした。ロビー画面（`ui/onlineScreen.ts`）自体は五目並べ・五五将棋で内容がほぼ同一だが、型（`StoneColor`と`Player`など）が異なりゲームごとの`roomService`を直接呼ぶ薄いUIであるため、あえて共通化せず各ゲームディレクトリに個別実装している（無理な汎用化よりシンプルさを優先）。
+
 ## 6. UI層の設計パターン
 
 両ゲームともUI層は以下の責務分担で統一している。
-- `boardView.ts`: 盤面のDOM（ボタン要素）を初回に一度だけ生成し、以降は`render()`呼び出しでクラス付け替え・テキスト書き換えのみを行う（毎手DOMを作り直さない）。
-- `ui/main.ts`: 難易度選択→対局→結果モーダルの画面遷移、盤面クリックのハンドリング、CPU手番の遅延実行（`window.setTimeout`でUIの描画を挟んでから計算することで、思考中の表示が一瞬でも見えるようにしている）、勝敗判定後の`showResultModal`呼び出しを担当する「コントローラ」的な役割。
+- `boardView.ts`: 盤面のDOM（ボタン要素）を初回に一度だけ生成し、以降は`render()`呼び出しでクラス付け替え・テキスト書き換えのみを行う（毎手DOMを作り直さない）。CPU対戦・オンライン対戦の両方から同じ`BoardView`/`HandView`を再利用する。
+- `ui/main.ts`: モード選択（CPU対戦/オンライン対戦）→難易度選択→対局→結果モーダルの画面遷移、盤面クリックのハンドリング、CPU手番の遅延実行（`window.setTimeout`でUIの描画を挟んでから計算することで、思考中の表示が一瞬でも見えるようにしている）、勝敗判定後の`showResultModal`呼び出しを担当する「コントローラ」的な役割。オンライン対戦画面（Firestore購読を持つ）への遷移時は、`activeDispose`という単一の変数で前の画面の購読を解除してから次の画面を描画する（4.5節参照、五五将棋の`ui/main.ts`も同じパターン）。
 
-五五将棋はさらに以下を`ui/main.ts`が管理する:
+五五将棋はさらに以下を管理する（CPU対戦は`ui/main.ts`、オンライン対戦は`ui/onlineGameScreen.ts`がそれぞれ独立して持つ。ロジックは同じだが状態の出どころ＝ローカルの`GameState`かFirestoreの`RoomDoc`か、が異なる）:
 - 選択状態（盤上の駒を選択中／持ち駒を選択中／未選択）と、それに応じた合法手ハイライトの計算。
 - 成り／不成りの両方が合法手として存在する場合の選択ポップアップ（`showPromotionPrompt`）表示。
-- 千日手判定用の着手履歴（`HistoryEntry[]`）の記録と、`checkRepetition`の呼び出し。
+- 千日手判定用の着手履歴（`HistoryEntry[]`）の記録と、`checkRepetition`の呼び出し（CPU対戦はローカル変数、オンライン対戦はFirestoreドキュメントの`history`フィールドとして保持）。
 
 ## 7. テスト戦略
 
@@ -163,7 +178,11 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 - `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
 - ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
 
-## 9. 今後の拡張ポイント（Phase 2続き / Phase 3向けメモ）
+## 9. 今後の拡張ポイント（Phase 3向けメモ）
 
-- **五五将棋へのオンライン対戦展開**: 五目並べで実証済みのパターン（`shared/firebase.ts` を共通利用し、`src/games/gogo-shogi/online/roomService.ts` 相当を新設、`logic/`層の`applyMove`/`generateLegalMoves`等をそのまま再利用）を踏襲すればよい。ただし五五将棋は持ち駒・成りがあり盤面より状態が複雑なため、Firestoreドキュメントの構造（`hand`の表現、成り選択の同期タイミングなど）は五目並べのものをそのまま流用せず改めて設計すること。盤面のシリアライズは五目並べと同様「Firestoreはネスト配列非対応」という制約に注意（4.5節参照）。
-- 新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。
+五目並べ・五五将棋ともにオンライン対戦まで実装済み（Phase 2完了）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが2ゲーム分実証済みなのでそのまま踏襲できる:
+
+- `shared/firebase.ts`（Firestore初期化）は共通利用し、`shared/onlineRoomCode.ts`（ルーム番号生成）も共通利用する。
+- ゲーム固有の状態はそのゲーム専用のFirestoreコレクションに保存する（`games`, `shogiGames`のように分離）。
+- 盤面が2次元配列の場合はFirestoreがネスト配列を扱えないため、`toWireBoard`/`fromWireBoard`パターンでフラット配列化する（4.5節・5.5節参照）。
+- ロビー画面（`ui/onlineScreen.ts`）・対局画面（`ui/onlineGameScreen.ts`）はゲームごとに個別実装し、`ui/main.ts`側で`activeDispose`パターンによりFirestore購読のライフサイクルを管理する。
