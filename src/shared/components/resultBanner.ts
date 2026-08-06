@@ -47,7 +47,8 @@ export function showResultBanner({ container, result, onReplay }: ResultBannerOp
 
   const topLink = document.createElement('a');
   topLink.className = 'btn';
-  topLink.href = './index.html';
+  // ゲームのHTMLはpages/配下にあり階層が異なるため、Viteのbase設定から解決される絶対パスを使う
+  topLink.href = import.meta.env.BASE_URL;
   topLink.textContent = 'ポータルトップへ';
   actions.appendChild(topLink);
 

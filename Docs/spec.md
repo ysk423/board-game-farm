@@ -16,7 +16,7 @@
 | デプロイ方式 | GitHub Actions（`main`ブランチへのpushで自動ビルド・デプロイ。手動設定は不要） |
 | バックエンド | Firebase Firestore（プロジェクト: `board-game-farm`）。全6ゲームのオンライン対戦で使用（コレクションは`games`/`shogiGames`/`tictactoeGames`/`otrioGames`/`yonmokuGames`/`gobbletGames`にゲームごと分離）。CPU対戦は引き続きバックエンド不要 |
 | 技術スタック | TypeScript + Vite（フレームワーク不使用のVanilla TypeScript） |
-| 構成方式 | Multi-Page Application（`index.html` / `gomoku.html` / `gogo-shogi.html` / `tictactoe.html` / `otrio.html` / `yonmoku.html` / `gobblet.html`） |
+| 構成方式 | Multi-Page Application（ポータルトップは`index.html`、各ゲームは`pages/`配下に配置: `pages/gomoku.html` / `pages/gogo-shogi.html` / `pages/tictactoe.html` / `pages/otrio.html` / `pages/yonmoku.html` / `pages/gobblet.html`） |
 | パッケージマネージャ | npm |
 | テスト | Vitest（ゲームロジック層のユニットテスト） |
 | 対応ゲーム | ①五目並べ（Gomoku） ②五五将棋（ごごしょうぎ） ③〇×ゲーム（三目並べ） ④オートリオ ⑤四目並べ ⑥ゴブレット・ゴブラーズ |
@@ -29,7 +29,7 @@
 
 ## 2. サイト構成
 
-- ポータルトップ（`index.html`）にゲーム一覧をカード形式で表示し、カードをクリックすると各ゲーム画面（`gomoku.html` / `gogo-shogi.html` / `tictactoe.html` / `otrio.html` / `yonmoku.html` / `gobblet.html`）に遷移する。カードには「CPU対戦」「オンライン対戦」のタグを表示する。
+- ポータルトップ（`index.html`）にゲーム一覧をカード形式で表示し、カードをクリックすると各ゲーム画面（`pages/gomoku.html` / `pages/gogo-shogi.html` / `pages/tictactoe.html` / `pages/otrio.html` / `pages/yonmoku.html` / `pages/gobblet.html`）に遷移する。カードには「CPU対戦」「オンライン対戦」のタグを表示する。
 - 各ゲーム画面は「対戦相手選択（CPU対戦/オンライン対戦/ルール説明） → （CPU対戦なら難易度選択 →）対局画面 → 結果バナー（もう一度対局する / ポータルトップへ）」という共通の画面遷移パターンに従う。
 - ヘッダーは全ページ共通で、ゲーム画面ではポータルトップへ戻る導線を表示する。
 
@@ -40,6 +40,7 @@
 - 背景: チャコール系（`#1c1f26`）、カード面: `#262a33` + 細いボーダー
 - アクセントカラー: ゲームごとに切り替え（五目並べ=レッド`#ef4444`、五五将棋=アンバー`#e8a33d`、〇×ゲーム=ブルー`#4d96ff`、オートリオ=パープル`#c77dff`）。当初五目並べはエメラルド`#3ddc97`だったが、後述の「オンライン対戦」タグの統一色（ティール系`#2dd4bf`）と近すぎたためレッドに変更した。
 - ポータルカードの「CPU対戦」「オンライン対戦」タグはゲームごとのアクセント色に合わせず、全ゲーム共通の色（CPU対戦=ニュートラルなグレー、オンライン対戦=ティール`--color-accent-online: #2dd4bf`）で統一している。
+- ポータルカードのアイコンはゲームごとにSVGを個別に用意している。オートリオ・ゴブレット・ゴブラーズは当初どちらも「格子の中に大中小の四角形を同心状に重ねる」モチーフで似通っていたため、ゴブレット・ゴブラーズ側を「駒が別マスへ動く矢印」＋「移動先で相手の小さい駒に被さる」という固有メカニクス（移動＋被覆）を表現するデザインに変更し、視覚的に差別化した（カード説明文も「駒を被せて相手を隠し、動かして入れ替える陣取りゲーム。」に変更）。変更前にArtifactでラフ案を3パターン提示し、ユーザーが選んだ案を採用する流れで実施した。
 - 角丸: 8px、フラットでシャープなカード形状
 - フォント: ニュートラルなゴシック体一本（`Hiragino Sans` / `Yu Gothic` 等のシステムフォントスタック）
 - 今後ゲームが増えてもカードを追加するだけで一覧に反映される配列駆動の構造

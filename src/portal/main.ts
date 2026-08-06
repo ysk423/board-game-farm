@@ -93,6 +93,8 @@ const YONMOKU_ICON = `
   </svg>
 `;
 
+// 「移動」（駒が別マスへ動く矢印）＋「被覆」（移動先で相手の小さい駒に被さる）の
+// 2つの固有メカニクスを1アイコンに表現し、オートリオ（同心状に重ねる）と差別化している
 const GOBBLET_ICON = `
   <svg viewBox="0 0 48 48" fill="none">
     <g stroke="var(--color-text-muted)" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round">
@@ -101,11 +103,11 @@ const GOBBLET_ICON = `
       <line x1="4" y1="17" x2="44" y2="17" />
       <line x1="4" y1="31" x2="44" y2="31" />
     </g>
-    <rect x="4" y="31" width="10" height="10" rx="2" fill="none" stroke="var(--color-text-muted)" stroke-width="1.6" />
-    <g transform="translate(24,17)">
-      <rect x="-11" y="-11" width="22" height="22" rx="3" fill="none" stroke="var(--color-text-muted)" stroke-opacity="0.5" stroke-width="1.6" />
-      <rect x="-7" y="-7" width="14" height="14" rx="2.5" fill="currentColor" />
-    </g>
+    <rect x="6" y="30" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.8" stroke-dasharray="2 2" />
+    <rect x="30" y="8" width="8" height="8" rx="2" fill="none" stroke="var(--color-text-muted)" stroke-opacity="0.7" stroke-width="1.6" />
+    <rect x="27" y="5" width="13" height="13" rx="2.5" fill="currentColor" />
+    <path d="M15 32 Q 24 22 28 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    <polygon points="28,15 23,16 25,20" fill="currentColor" />
   </svg>
 `;
 
@@ -116,7 +118,7 @@ const GAMES: GameCardData[] = [
     icon: GOMOKU_ICON,
     title: '五目並べ',
     description: '15×15の盤で5つ石を並べたら勝ち。',
-    href: './gomoku.html',
+    href: './pages/gomoku.html',
     accentVar: '--color-accent-gomoku',
     online: true,
   },
@@ -125,7 +127,7 @@ const GAMES: GameCardData[] = [
     icon: GOGO_SHOGI_ICON,
     title: '五五将棋',
     description: '5×5マスのミニ将棋。持ち駒あり。',
-    href: './gogo-shogi.html',
+    href: './pages/gogo-shogi.html',
     accentVar: '--color-accent-gogo-shogi',
     online: true,
   },
@@ -134,7 +136,7 @@ const GAMES: GameCardData[] = [
     icon: TICTACTOE_ICON,
     title: '〇×ゲーム',
     description: '3×3の盤に〇×を交互に置き、3つ並べたら勝ち。',
-    href: './tictactoe.html',
+    href: './pages/tictactoe.html',
     accentVar: '--color-accent-tictactoe',
     online: true,
   },
@@ -143,7 +145,7 @@ const GAMES: GameCardData[] = [
     icon: OTRIO_ICON,
     title: 'オートリオ',
     description: '3×3の盤に小・中・大の駒を重ねて置く陣取りゲーム。',
-    href: './otrio.html',
+    href: './pages/otrio.html',
     accentVar: '--color-accent-otrio',
     online: true,
   },
@@ -152,7 +154,7 @@ const GAMES: GameCardData[] = [
     icon: YONMOKU_ICON,
     title: '四目並べ',
     description: '五目並べと同じ盤で、4つ石を並べたら勝ち。',
-    href: './yonmoku.html',
+    href: './pages/yonmoku.html',
     accentVar: '--color-accent-yonmoku',
     online: true,
   },
@@ -160,8 +162,8 @@ const GAMES: GameCardData[] = [
     id: 'gobblet',
     icon: GOBBLET_ICON,
     title: 'ゴブレット・ゴブラーズ',
-    description: '小・中・大の駒を被せたり動かしたりして3つ並べる陣取りゲーム。',
-    href: './gobblet.html',
+    description: '駒を被せて相手を隠し、動かして入れ替える陣取りゲーム。',
+    href: './pages/gobblet.html',
     accentVar: '--color-accent-gobblet',
     online: true,
   },
