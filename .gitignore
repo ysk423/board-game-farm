@@ -2,3 +2,7 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# ユーザーが都度書き換える作業用todoファイル（個人のローカル作業指示のため管理対象外）
+Docs/todo.md
+Docs/todo-feature.md
