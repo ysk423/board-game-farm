@@ -130,13 +130,29 @@
 .gobblet-piece--mine {
   display: block;
   border: 2px solid var(--color-accent-gobblet);
-  background: color-mix(in srgb, var(--color-accent-gobblet) 22%, transparent);
 }
 
 .gobblet-piece--opponent {
   display: block;
   border: 2px solid #e8eaed;
+}
+
+/* 一番上（現在有効）の駒は塗りつぶす */
+.gobblet-piece--mine.gobblet-piece--top {
+  background: color-mix(in srgb, var(--color-accent-gobblet) 22%, transparent);
+}
+
+.gobblet-piece--opponent.gobblet-piece--top {
   background: color-mix(in srgb, #e8eaed 14%, transparent);
+}
+
+/* 被せられて隠れている駒は線だけにし、下に何があるか常に見えるようにする */
+.gobblet-piece--hidden {
+  background: transparent;
+}
+
+.gobblet-piece--opponent.gobblet-piece--hidden {
+  opacity: 0.7;
 }
 
 .gobblet-actions {
