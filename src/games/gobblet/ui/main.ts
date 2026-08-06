@@ -2,6 +2,7 @@ import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
+import { showRulesModal } from '../../../shared/components/rulesModal';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { createInitialState, topOf, type GameState, type Player, type Size } from '../logic/board';
 import { applyMove, checkRepetition, checkWin, getLegalMoves, type Move } from '../logic/rules';
@@ -10,8 +11,8 @@ import { BoardView } from './boardView';
 import { InventoryView } from './inventoryView';
 import { renderOnlineScreen } from './onlineScreen';
 import { renderOnlineGameScreen } from './onlineGameScreen';
+import { GAME_NAME, RULES_SECTIONS } from './rulesContent';
 
-const GAME_NAME = 'ゴブレット・ゴブラーズ';
 const HUMAN: Player = 1; // プレイヤーは先手固定
 const CPU: Player = 2;
 const CPU_THINK_DELAY_MS = 300;
@@ -114,36 +115,7 @@ function showRulesScreen(container: HTMLElement): void {
   container.appendChild(
     renderRulesScreen({
       gameName: GAME_NAME,
-      sections: [
-        {
-          title: '基本ルール',
-          body: [
-            '3×3マスの盤を使います。各プレイヤーは小・中・大の駒を2個ずつ、合計6個持っています。',
-            '自分の手番には「持ち駒を新しく置く」か「盤上にある自分の駒を動かす」のどちらかを行います。',
-          ],
-        },
-        {
-          title: '被せるルール',
-          body: [
-            '駒は、空いているマスだけでなく、自分より小さい駒の上にも被せて置けます（相手の駒でも自分の駒でも構いません）。',
-            '被せられた駒はその場に残ったまま隠れます。上の駒が動けば、また見えるようになります。',
-          ],
-        },
-        {
-          title: '移動するルール',
-          body: [
-            '盤上にある自分の駒（一番上に見えている駒）は、空いているマスか自分より小さい駒の上へ動かせます。',
-            '駒を動かすと、元のマスに他の駒が隠れていればそれが見えるようになります。',
-          ],
-        },
-        {
-          title: '勝利条件・引き分け',
-          body: [
-            '一番上に見えている自分の駒が、縦・横・斜めのいずれかに3つ並ぶと勝ちです（駒のサイズが揃っている必要はありません）。',
-            '同じ局面が3回繰り返された場合は引き分けとします（本来のルールにはない、対局が終わらなくなることを防ぐための措置です）。',
-          ],
-        },
-      ],
+      sections: RULES_SECTIONS,
       onBack: () => showModeSelectScreen(container),
     }),
   );
@@ -181,9 +153,16 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     if (gameOver) return;
     finish('lose', '投了しました');
   });
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール';
+  rulesButton.addEventListener('click', () => showRulesModal({ gameName: GAME_NAME, sections: RULES_SECTIONS }));
+
   const actions = document.createElement('div');
   actions.className = 'gobblet-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(rulesButton);
   container.appendChild(actions);
 
   refresh();

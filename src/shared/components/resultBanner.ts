@@ -12,8 +12,9 @@ const OUTCOME_TITLES: Record<GameResult['outcome'], string> = {
   draw: '引き分けです',
 };
 
-// 対局結果バナー。全画面オーバーレイにはせず、呼び出し元のcontainerの先頭に挿入することで
-// 盤面・持ち駒表示など最終局面を隠さないようにする
+// 対局結果バナー。全画面オーバーレイにはせず、呼び出し元のcontainerの末尾（盤面・持ち駒・操作ボタンの下）に
+// 追加することで、盤面など最終局面を隠さず、かつ表示時に盤面がずれないようにする
+// （先頭に挿入すると、結果表示前後で盤面が下にずれて見えるため）
 export function showResultBanner({ container, result, onReplay }: ResultBannerOptions): void {
   const banner = document.createElement('div');
   banner.className = `result-banner result-banner--${result.outcome}`;
@@ -53,5 +54,5 @@ export function showResultBanner({ container, result, onReplay }: ResultBannerOp
   actions.appendChild(topLink);
 
   banner.appendChild(actions);
-  container.insertBefore(banner, container.firstChild);
+  container.appendChild(banner);
 }

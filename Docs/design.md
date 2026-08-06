@@ -77,7 +77,7 @@
 DOM要素を組み立てて返す関数として実装（クラスではなく関数ベース）。
 - `header.ts`: `renderHeader({ gameTitle? })` — ゲーム画面では戻り導線を追加表示。ブランドリンク・トップへ戻るリンクは`import.meta.env.BASE_URL`（Viteの`base`設定から解決される絶対パス、`/board-game-farm/`）を使う。各ゲームHTMLが`pages/`配下に移動し`index.html`と階層が異なるため、`./index.html`のような相対パスでは戻れなくなったことへの対応（`resultBanner.ts`の「ポータルトップへ」リンクも同様）。`import.meta.env`の型を使うため`src/vite-env.d.ts`（`/// <reference types="vite/client" />`）を追加している。
 - `difficultySelector.ts`: `renderDifficultySelector({ gameName, onSelect })` — 弱/中/強ボタンを描画し、選択時にコールバック。
-- `resultBanner.ts`: `showResultBanner({ container, result, onReplay })` — 呼び出し元が指定した`container`の先頭（`insertBefore(banner, container.firstChild)`）に結果バナーを挿入する。「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。当初は`resultModal.ts`という名前で`document.body`に`position: fixed`のオーバーレイを追加する実装だったが、勝敗確定後に最終盤面が見えなくなる問題があったため、盤面を隠さない非モーダルのバナー方式にリネーム・再実装した（詳細は後述）。
+- `resultBanner.ts`: `showResultBanner({ container, result, onReplay })` — 呼び出し元が指定した`container`の末尾（`container.appendChild(banner)`、盤面・持ち駒・操作ボタンより下）に結果バナーを追加する。「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。当初は`resultModal.ts`という名前で`document.body`に`position: fixed`のオーバーレイを追加する実装だったが、勝敗確定後に最終盤面が見えなくなる問題があったため、盤面を隠さない非モーダルのバナー方式にリネーム・再実装した。さらに当初はコンテナの先頭に挿入していたため結果表示時に盤面が下にずれて見える問題があり、末尾への追加に変更した（詳細は後述）。
 - `rulesScreen.ts`: `renderRulesScreen({ gameName, sections, onBack })` — 各ゲームのルール説明画面を共通レイアウトで描画。
 
 なお五五将棋の成り選択ポップアップ（`src/games/gogo-shogi/ui/promotionPrompt.ts`）は「選択を強制する」用途のブロッキングモーダルであるため、`resultBanner.ts`への変更後も`.modal-overlay`/`.modal`クラス（`document.body`への全画面オーバーレイ）を引き続き使用している。結果表示とは目的が異なるため、あえて統一しなかった。
