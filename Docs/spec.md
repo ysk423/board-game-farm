@@ -16,7 +16,7 @@
 | デプロイ方式 | GitHub Actions（`main`ブランチへのpushで自動ビルド・デプロイ。手動設定は不要） |
 | バックエンド | Firebase Firestore（プロジェクト: `board-game-farm`）。全6ゲームのオンライン対戦で使用（コレクションは`games`/`shogiGames`/`tictactoeGames`/`otrioGames`/`yonmokuGames`/`gobbletGames`にゲームごと分離）。CPU対戦は引き続きバックエンド不要 |
 | 技術スタック | TypeScript + Vite（フレームワーク不使用のVanilla TypeScript） |
-| 構成方式 | Multi-Page Application（`index.html` / `gomoku.html` / `gogo-shogi.html` / `tictactoe.html` / `otrio.html` / `yonmoku.html` / `gobblet.html`） |
+| 構成方式 | Multi-Page Application（ポータルトップは`index.html`、各ゲームは`pages/`配下に配置: `pages/gomoku.html` / `pages/gogo-shogi.html` / `pages/tictactoe.html` / `pages/otrio.html` / `pages/yonmoku.html` / `pages/gobblet.html`） |
 | パッケージマネージャ | npm |
 | テスト | Vitest（ゲームロジック層のユニットテスト） |
 | 対応ゲーム | ①五目並べ（Gomoku） ②五五将棋（ごごしょうぎ） ③〇×ゲーム（三目並べ） ④オートリオ ⑤四目並べ ⑥ゴブレット・ゴブラーズ |
@@ -29,7 +29,7 @@
 
 ## 2. サイト構成
 
-- ポータルトップ（`index.html`）にゲーム一覧をカード形式で表示し、カードをクリックすると各ゲーム画面（`gomoku.html` / `gogo-shogi.html` / `tictactoe.html` / `otrio.html` / `yonmoku.html` / `gobblet.html`）に遷移する。カードには「CPU対戦」「オンライン対戦」のタグを表示する。
+- ポータルトップ（`index.html`）にゲーム一覧をカード形式で表示し、カードをクリックすると各ゲーム画面（`pages/gomoku.html` / `pages/gogo-shogi.html` / `pages/tictactoe.html` / `pages/otrio.html` / `pages/yonmoku.html` / `pages/gobblet.html`）に遷移する。カードには「CPU対戦」「オンライン対戦」のタグを表示する。
 - 各ゲーム画面は「対戦相手選択（CPU対戦/オンライン対戦/ルール説明） → （CPU対戦なら難易度選択 →）対局画面 → 結果バナー（もう一度対局する / ポータルトップへ）」という共通の画面遷移パターンに従う。
 - ヘッダーは全ページ共通で、ゲーム画面ではポータルトップへ戻る導線を表示する。
 

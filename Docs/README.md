@@ -17,12 +17,12 @@ npm run dev
 起動後、`http://localhost:5173/board-game-farm/` を開く。
 
 - ポータルトップ（ゲーム一覧）
-- `http://localhost:5173/board-game-farm/gomoku.html`（五目並べ）
-- `http://localhost:5173/board-game-farm/gogo-shogi.html`（五五将棋）
-- `http://localhost:5173/board-game-farm/tictactoe.html`（〇×ゲーム）
-- `http://localhost:5173/board-game-farm/otrio.html`（オートリオ）
-- `http://localhost:5173/board-game-farm/yonmoku.html`（四目並べ）
-- `http://localhost:5173/board-game-farm/gobblet.html`（ゴブレット・ゴブラーズ）
+- `http://localhost:5173/board-game-farm/pages/gomoku.html`（五目並べ）
+- `http://localhost:5173/board-game-farm/pages/gogo-shogi.html`（五五将棋）
+- `http://localhost:5173/board-game-farm/pages/tictactoe.html`（〇×ゲーム）
+- `http://localhost:5173/board-game-farm/pages/otrio.html`（オートリオ）
+- `http://localhost:5173/board-game-farm/pages/yonmoku.html`（四目並べ）
+- `http://localhost:5173/board-game-farm/pages/gobblet.html`（ゴブレット・ゴブラーズ）
 
 ## 本番ビルドの確認
 
@@ -51,7 +51,7 @@ npm run test
 
 オンライン対戦はFirestore（プロジェクト: `board-game-farm`）を使って2人のプレイヤーの状態をリアルタイム同期する。ゲームごとに別コレクションを使う（五目並べ=`games`、五五将棋=`shogiGames`、〇×ゲーム=`tictactoeGames`、オートリオ=`otrioGames`、四目並べ=`yonmokuGames`、ゴブレット・ゴブラーズ=`gobbletGames`）が、実装・データモデルは別でもUIの操作感・確認手順は共通。**1人で確認する場合はブラウザタブを2つ（またはシークレットウィンドウ＋通常ウィンドウなど別セッション扱いになるもの）を開き、両方から同じゲームのページにアクセスして片方が先手側、もう片方が後手側として参加する。**
 
-確認手順の例（`gomoku.html` の場合。他のゲームでも同じ流れ）:
+確認手順の例（`pages/gomoku.html` の場合。他のゲームでも同じ流れ）:
 
 1. タブA: 対象ページ → 「オンライン対戦」→ 名前を入力（未入力でも可）→「手番」「公開設定」をそれぞれ選び →「ルームを作成」
 2. 表示されたルーム番号を確認（公開ルームならタブB側の一覧に自動的に表示される）

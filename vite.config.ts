@@ -8,12 +8,12 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        gomoku: resolve(__dirname, 'gomoku.html'),
-        gogoShogi: resolve(__dirname, 'gogo-shogi.html'),
-        tictactoe: resolve(__dirname, 'tictactoe.html'),
-        otrio: resolve(__dirname, 'otrio.html'),
-        yonmoku: resolve(__dirname, 'yonmoku.html'),
-        gobblet: resolve(__dirname, 'gobblet.html'),
+        gomoku: resolve(__dirname, 'pages/gomoku.html'),
+        gogoShogi: resolve(__dirname, 'pages/gogo-shogi.html'),
+        tictactoe: resolve(__dirname, 'pages/tictactoe.html'),
+        otrio: resolve(__dirname, 'pages/otrio.html'),
+        yonmoku: resolve(__dirname, 'pages/yonmoku.html'),
+        gobblet: resolve(__dirname, 'pages/gobblet.html'),
       },
     },
   },

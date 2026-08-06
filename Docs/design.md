@@ -6,7 +6,7 @@
 
 ## 1. アーキテクチャ方針
 
-- **構成方式**: Vite の Multi-Page Application（MPA）構成。`index.html`（ポータルトップ）、`gomoku.html`、`gogo-shogi.html` の3エントリを `vite.config.ts` の `build.rollupOptions.input` に登録している。SPAルーティングを使わないことで、ゲームごとに必要なJSのみを読み込む軽量な構成にしている。
+- **構成方式**: Vite の Multi-Page Application（MPA）構成。ポータルトップの`index.html`はルート直下、各ゲームのエントリHTML（`pages/gomoku.html`等）は`pages/`配下にまとめて配置し、計7エントリを `vite.config.ts` の `build.rollupOptions.input` に登録している。SPAルーティングを使わないことで、ゲームごとに必要なJSのみを読み込む軽量な構成にしている。各HTML内の`<link>`/`<script>`はいずれも`/src/...`という絶対パスで参照しており、HTMLファイル自体の配置階層に依存しない。
 - **UI技術**: フレームワーク不使用のVanilla TypeScript。DOM操作は素の `document.createElement` 等で行う。依存を最小限にし、GitHub Pagesでの静的配信・軽量なゲームUIとの相性を優先した。
 - **base path**: GitHub Pagesのプロジェクトサイト配信（`https://ysk423.github.io/board-game-farm/`）に合わせ、`vite.config.ts` で `base: '/board-game-farm/'` を設定している。
 
@@ -14,11 +14,14 @@
 
 ```
 /
-├─ index.html                 # ポータルトップ
-├─ gomoku.html                # 五目並べのエントリHTML
-├─ gogo-shogi.html            # 五五将棋のエントリHTML
-├─ tictactoe.html             # 〇×ゲームのエントリHTML
-├─ otrio.html                 # オートリオのエントリHTML
+├─ index.html                 # ポータルトップ（URLは変えたくないためルート直下のまま）
+├─ pages/                     # 各ゲームのエントリHTML置き場
+│  ├─ gomoku.html             # 五目並べ
+│  ├─ gogo-shogi.html         # 五五将棋
+│  ├─ tictactoe.html          # 〇×ゲーム
+│  ├─ otrio.html              # オートリオ
+│  ├─ yonmoku.html            # 四目並べ
+│  └─ gobblet.html            # ゴブレット・ゴブラーズ
 ├─ vite.config.ts             # base path・Multi-Page構成
 ├─ tsconfig.json
 ├─ vitest.config.ts
@@ -72,7 +75,7 @@
 
 ### shared/components
 DOM要素を組み立てて返す関数として実装（クラスではなく関数ベース）。
-- `header.ts`: `renderHeader({ gameTitle? })` — ゲーム画面では戻り導線を追加表示。
+- `header.ts`: `renderHeader({ gameTitle? })` — ゲーム画面では戻り導線を追加表示。ブランドリンク・トップへ戻るリンクは`import.meta.env.BASE_URL`（Viteの`base`設定から解決される絶対パス、`/board-game-farm/`）を使う。各ゲームHTMLが`pages/`配下に移動し`index.html`と階層が異なるため、`./index.html`のような相対パスでは戻れなくなったことへの対応（`resultBanner.ts`の「ポータルトップへ」リンクも同様）。`import.meta.env`の型を使うため`src/vite-env.d.ts`（`/// <reference types="vite/client" />`）を追加している。
 - `difficultySelector.ts`: `renderDifficultySelector({ gameName, onSelect })` — 弱/中/強ボタンを描画し、選択時にコールバック。
 - `resultBanner.ts`: `showResultBanner({ container, result, onReplay })` — 呼び出し元が指定した`container`の先頭（`insertBefore(banner, container.firstChild)`）に結果バナーを挿入する。「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。当初は`resultModal.ts`という名前で`document.body`に`position: fixed`のオーバーレイを追加する実装だったが、勝敗確定後に最終盤面が見えなくなる問題があったため、盤面を隠さない非モーダルのバナー方式にリネーム・再実装した（詳細は後述）。
 - `rulesScreen.ts`: `renderRulesScreen({ gameName, sections, onBack })` — 各ゲームのルール説明画面を共通レイアウトで描画。
