@@ -40,6 +40,13 @@ export function showRulesModal({ gameName, sections }: RulesModalOptions): void 
       p.textContent = paragraph;
       panel.appendChild(p);
     }
+
+    if (section.illustration) {
+      const figure = document.createElement('div');
+      figure.className = 'rules-illustration';
+      figure.innerHTML = section.illustration;
+      panel.appendChild(figure);
+    }
   }
 
   overlay.appendChild(panel);

@@ -17,6 +17,20 @@ export const RULES_SECTIONS: RulesSection[] = [
       '駒は、空いているマスだけでなく、自分より小さい駒の上にも被せて置けます（相手の駒でも自分の駒でも構いません）。',
       '被せられた駒はその場に残ったまま隠れます。上の駒が動けば、また見えるようになります。',
     ],
+    illustration: `
+      <svg viewBox="0 0 160 90" fill="none">
+        <g transform="translate(10,10)">
+          <rect x="0" y="34" width="26" height="26" rx="3" fill="none" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.8" stroke-dasharray="3 3" />
+          <rect x="8" y="42" width="10" height="10" rx="2" fill="none" stroke="#9aa0ac" stroke-width="1.4" />
+        </g>
+        <g transform="translate(96,4)">
+          <rect x="4" y="10" width="18" height="18" rx="2" fill="none" stroke="#9aa0ac" stroke-width="1.6" />
+          <rect x="0" y="6" width="26" height="26" rx="3" fill="currentColor" />
+        </g>
+        <path d="M30 54 Q 70 28 96 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <polygon points="96,20 89,20 92,26" fill="currentColor" />
+      </svg>
+    `,
   },
   {
     title: '移動するルール',

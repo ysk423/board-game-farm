@@ -1,6 +1,8 @@
 export interface RulesSection {
   title: string;
   body: string[];
+  /** ルールを図解するSVGマークアップ（任意）。currentColorでそのゲームのアクセントカラーに追従する */
+  illustration?: string;
 }
 
 export interface RulesScreenOptions {
@@ -30,6 +32,13 @@ export function renderRulesScreen(options: RulesScreenOptions): HTMLElement {
       p.className = 'rules-screen__paragraph';
       p.textContent = paragraph;
       section.appendChild(p);
+    }
+
+    if (rulesSection.illustration) {
+      const figure = document.createElement('div');
+      figure.className = 'rules-illustration';
+      figure.innerHTML = rulesSection.illustration;
+      section.appendChild(figure);
     }
   }
 

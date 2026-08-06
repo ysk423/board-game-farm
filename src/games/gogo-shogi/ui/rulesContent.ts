@@ -21,6 +21,17 @@ export const RULES_SECTIONS: RulesSection[] = [
       '最も奥の1列（敵陣）に入る、またはそこから動く手を指した際に、その駒を成ることができます。',
       '王将・玉将・金将は成れません。飛車→竜王、角行→竜馬、銀将→成銀、歩兵→と金になります。',
     ],
+    illustration: `
+      <svg viewBox="0 0 160 90" fill="none">
+        <line x1="16" y1="20" x2="16" y2="70" stroke="#383d48" stroke-width="1" />
+        <line x1="144" y1="20" x2="144" y2="70" stroke="#383d48" stroke-width="1" />
+        <polygon points="16,58 22,64 20,74 12,74 10,64" fill="currentColor" transform="translate(0,-4)" />
+        <line x1="4" y1="30" x2="28" y2="30" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 3" />
+        <path d="M40 45 Q 80 20 118 45" fill="none" stroke="#9aa0ac" stroke-width="1.8" stroke-linecap="round" />
+        <polygon points="118,45 111,42 112,48" fill="#9aa0ac" />
+        <polygon points="144,58 150,64 148,74 140,74 138,64" fill="none" stroke="currentColor" stroke-width="1.8" transform="translate(0,-4)" />
+      </svg>
+    `,
   },
   {
     title: '禁止事項',

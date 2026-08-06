@@ -17,6 +17,23 @@ export const RULES_SECTIONS: RulesSection[] = [
       '同じサイズの駒が縦・横・斜めのいずれかに3つ並ぶと勝ちです。',
       'また、1つのマスに自分の小・中・大の駒すべてが揃う（トリオ）と、それだけでも勝ちになります。',
     ],
+    illustration: `
+      <svg viewBox="0 0 160 90" fill="none">
+        <g transform="translate(41,5)">
+          <g stroke="#9aa0ac" stroke-opacity="0.5" stroke-width="1.4">
+            <line x1="26" y1="0" x2="26" y2="78" />
+            <line x1="52" y1="0" x2="52" y2="78" />
+            <line x1="0" y1="26" x2="78" y2="26" />
+            <line x1="0" y1="52" x2="78" y2="52" />
+          </g>
+          <g transform="translate(39,39)">
+            <rect x="-11" y="-11" width="22" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2" />
+            <rect x="-7" y="-7" width="14" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="2" />
+            <rect x="-3" y="-3" width="6" height="6" rx="1.5" fill="currentColor" />
+          </g>
+        </g>
+      </svg>
+    `,
   },
   {
     title: '引き分け',

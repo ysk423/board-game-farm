@@ -197,7 +197,7 @@ a {
   color: var(--color-text);
 }
 
-/* 対局結果バナー。オーバーレイにせず画面内に差し込むことで最終盤面を隠さない */
+/* 対局結果バナー。オーバーレイにせず盤面の下に追加することで最終盤面を隠さず、表示時に盤面もずれない */
 .result-banner {
   display: flex;
   flex-wrap: wrap;
@@ -205,7 +205,7 @@ a {
   justify-content: space-between;
   gap: 12px 20px;
   padding: 14px 20px;
-  margin: 0 0 16px;
+  margin: 16px 0 0;
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -374,6 +374,24 @@ a {
   line-height: 1.7;
   color: var(--color-text);
   margin: 0 0 4px;
+}
+
+/* ルールを図解するSVGの枠。colorをアクセントカラーに設定し、SVG側のcurrentColorに追従させる */
+.rules-illustration {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 4px;
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-accent);
+}
+
+.rules-illustration svg {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
 }
 
 .rules-screen__back {

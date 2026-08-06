@@ -10,6 +10,18 @@ export const RULES_SECTIONS: RulesSection[] = [
       '15×15マスの盤に、2人が交互に石を置いていきます。',
       '縦・横・斜めのいずれかの方向に、自分の色の石を5つ以上連続して並べた方が勝ちです。',
     ],
+    illustration: `
+      <svg viewBox="0 0 160 90" fill="none">
+        <rect x="20" y="26" width="112" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="4 3" />
+        <circle cx="14" cy="45" r="6" fill="none" stroke="#9aa0ac" stroke-width="1.4" stroke-dasharray="2 2" />
+        <circle cx="36" cy="45" r="7" fill="#14161a" stroke="#4a4f5c" />
+        <circle cx="58" cy="45" r="7" fill="#14161a" stroke="#4a4f5c" />
+        <circle cx="80" cy="45" r="7" fill="#14161a" stroke="#4a4f5c" />
+        <circle cx="102" cy="45" r="7" fill="#14161a" stroke="#4a4f5c" />
+        <circle cx="124" cy="45" r="7" fill="#14161a" stroke="#4a4f5c" />
+        <circle cx="146" cy="45" r="6" fill="none" stroke="#9aa0ac" stroke-width="1.4" stroke-dasharray="2 2" />
+      </svg>
+    `,
   },
   {
     title: '禁じ手・引き分け',
