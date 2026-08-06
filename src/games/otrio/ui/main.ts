@@ -2,6 +2,7 @@ import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
+import { showRulesModal } from '../../../shared/components/rulesModal';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { createInitialState, type GameState, type Player, type Size } from '../logic/board';
 import { applyMove, checkWin, getLegalMoves, isGameOver, type Move } from '../logic/rules';
@@ -10,8 +11,8 @@ import { BoardView } from './boardView';
 import { InventoryView } from './inventoryView';
 import { renderOnlineScreen } from './onlineScreen';
 import { renderOnlineGameScreen } from './onlineGameScreen';
+import { GAME_NAME, RULES_SECTIONS } from './rulesContent';
 
-const GAME_NAME = 'オートリオ';
 const HUMAN: Player = 1; // プレイヤーは先手固定
 const CPU: Player = 2;
 const CPU_THINK_DELAY_MS = 300;
@@ -114,26 +115,7 @@ function showRulesScreen(container: HTMLElement): void {
   container.appendChild(
     renderRulesScreen({
       gameName: GAME_NAME,
-      sections: [
-        {
-          title: '基本ルール',
-          body: [
-            '3×3マスの盤を使い、各マスには小・中・大それぞれのサイズの駒を1つずつ重ねて置くことができます。',
-            '各プレイヤーは小・中・大の駒を3個ずつ、合計9個持っています。自分の手番に、持ち駒の中から好きなサイズを選び、そのサイズがまだ空いているマスへ置きます。',
-          ],
-        },
-        {
-          title: '勝利条件',
-          body: [
-            '同じサイズの駒が縦・横・斜めのいずれかに3つ並ぶと勝ちです。',
-            'また、1つのマスに自分の小・中・大の駒すべてが揃う（トリオ）と、それだけでも勝ちになります。',
-          ],
-        },
-        {
-          title: '引き分け',
-          body: ['両者の持ち駒がすべてなくなっても勝敗が決まらない場合は引き分けです。'],
-        },
-      ],
+      sections: RULES_SECTIONS,
       onBack: () => showModeSelectScreen(container),
     }),
   );
@@ -170,9 +152,16 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     if (gameOver) return;
     finish('lose', '投了しました');
   });
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール';
+  rulesButton.addEventListener('click', () => showRulesModal({ gameName: GAME_NAME, sections: RULES_SECTIONS }));
+
   const actions = document.createElement('div');
   actions.className = 'otrio-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(rulesButton);
   container.appendChild(actions);
 
   refresh();

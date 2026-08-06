@@ -1,8 +1,10 @@
 import { showResultBanner } from '../../../shared/components/resultBanner';
+import { showRulesModal } from '../../../shared/components/rulesModal';
 import type { GameOutcome } from '../../../types/common';
 import { resign as resignRoom, subscribeToRoom, submitMove } from '../online/roomService';
 import type { RoomDoc, StoneColor } from '../online/types';
 import { BoardView } from './boardView';
+import { GAME_NAME, RULES_SECTIONS } from './rulesContent';
 
 export interface OnlineGameScreenOptions {
   roomId: string;
@@ -72,9 +74,16 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     if (!latestRoom || latestRoom.status !== 'playing') return;
     resignRoom(roomId, color).catch((error) => console.error(error));
   });
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール';
+  rulesButton.addEventListener('click', () => showRulesModal({ gameName: GAME_NAME, sections: RULES_SECTIONS }));
+
   const actions = document.createElement('div');
   actions.className = 'yonmoku-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(rulesButton);
   wrapper.appendChild(actions);
 
   function updateView(room: RoomDoc): void {

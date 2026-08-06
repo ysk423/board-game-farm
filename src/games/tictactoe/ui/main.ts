@@ -2,6 +2,7 @@ import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
+import { showRulesModal } from '../../../shared/components/rulesModal';
 import type { Difficulty, GameOutcome } from '../../../types/common';
 import { BATSU, type Board, createEmptyBoard, MARU, type Stone } from '../logic/board';
 import { checkWin, isBoardFull } from '../logic/rules';
@@ -9,9 +10,9 @@ import { getCpuMove } from '../logic/ai';
 import { BoardView } from './boardView';
 import { renderOnlineScreen } from './onlineScreen';
 import { renderOnlineGameScreen } from './onlineGameScreen';
+import { GAME_NAME, RULES_SECTIONS } from './rulesContent';
 import type { StoneColor } from '../online/types';
 
-const GAME_NAME = '〇×ゲーム';
 // CPUの着手を即座に反映すると考えているように見えないため、わずかに間を置く
 const CPU_THINK_DELAY_MS = 300;
 
@@ -113,19 +114,7 @@ function showRulesScreen(container: HTMLElement): void {
   container.appendChild(
     renderRulesScreen({
       gameName: GAME_NAME,
-      sections: [
-        {
-          title: '基本ルール',
-          body: [
-            '3×3マスの盤に、2人が交互に○と×を置いていきます。',
-            '縦・横・斜めのいずれかの方向に、自分の記号を3つ連続して並べた方が勝ちです。',
-          ],
-        },
-        {
-          title: '引き分け',
-          body: ['盤面がすべて埋まっても勝敗が決まらない場合は引き分けです。'],
-        },
-      ],
+      sections: RULES_SECTIONS,
       onBack: () => showModeSelectScreen(container),
     }),
   );
@@ -156,9 +145,16 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     if (gameOver) return;
     finish('lose', '投了しました');
   });
+  const rulesButton = document.createElement('button');
+  rulesButton.type = 'button';
+  rulesButton.className = 'btn';
+  rulesButton.textContent = 'ルール';
+  rulesButton.addEventListener('click', () => showRulesModal({ gameName: GAME_NAME, sections: RULES_SECTIONS }));
+
   const actions = document.createElement('div');
   actions.className = 'tictactoe-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(rulesButton);
   container.appendChild(actions);
 
   boardView.render(board, null);
