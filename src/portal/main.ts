@@ -111,6 +111,22 @@ const GOBBLET_ICON = `
   </svg>
 `;
 
+// 4枚の盤（2×2）を表す4つの正方形＋押し出しを示す黒石→矢印→白石のモチーフ
+const STONEPUSH_ICON = `
+  <svg viewBox="0 0 48 48" fill="none">
+    <g stroke="var(--color-text-muted)" stroke-opacity="0.45" stroke-width="1.6">
+      <rect x="4" y="4" width="17" height="17" rx="2" />
+      <rect x="27" y="4" width="17" height="17" rx="2" />
+      <rect x="4" y="27" width="17" height="17" rx="2" />
+    </g>
+    <rect x="27" y="27" width="17" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+    <circle cx="32" cy="35.5" r="3.2" fill="currentColor" />
+    <circle cx="41" cy="35.5" r="3.2" fill="none" stroke="var(--color-text-muted)" stroke-width="1.6" />
+    <path d="M36.5 35.5 H 41" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    <polygon points="41,35.5 38,33.7 38,37.3" fill="currentColor" />
+  </svg>
+`;
+
 // 今後ゲームが増えた場合はここに追加するだけでカードが増える
 const GAMES: GameCardData[] = [
   {
@@ -166,6 +182,15 @@ const GAMES: GameCardData[] = [
     href: './pages/gobblet.html',
     accentVar: '--color-accent-gobblet',
     online: true,
+  },
+  {
+    id: 'stonepush',
+    icon: STONEPUSH_ICON,
+    title: 'ストーンプッシュ',
+    description: '2×2に並んだ4枚の盤で、石を動かして相手を押し出す陣取りゲーム。',
+    href: './pages/stonepush.html',
+    accentVar: '--color-accent-stonepush',
+    online: false,
   },
 ];
 

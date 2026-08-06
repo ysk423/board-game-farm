@@ -15,6 +15,7 @@
   --color-accent-otrio: #c77dff;
   --color-accent-yonmoku: #38bdf8;
   --color-accent-gobblet: #f472b6;
+  --color-accent-stonepush: #a3e635;
   --color-accent-online: #2dd4bf; /* ゲーム固有色とは独立した「オンライン対戦」タグ専用の統一色 */
   --color-accent: var(--color-accent-gomoku);
 

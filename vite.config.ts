@@ -14,6 +14,7 @@ export default defineConfig({
         otrio: resolve(__dirname, 'pages/otrio.html'),
         yonmoku: resolve(__dirname, 'pages/yonmoku.html'),
         gobblet: resolve(__dirname, 'pages/gobblet.html'),
+        stonepush: resolve(__dirname, 'pages/stonepush.html'),
       },
     },
   },

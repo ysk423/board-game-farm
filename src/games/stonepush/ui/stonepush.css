@@ -1,0 +1,112 @@
+:root {
+  --color-accent: var(--color-accent-stonepush);
+}
+
+.stonepush-status {
+  text-align: center;
+  color: var(--color-text-muted);
+  min-height: 20px;
+  margin: 0 0 12px;
+}
+
+.stonepush-boards {
+  --cell-size: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, calc(var(--cell-size) * 4 + 2px));
+  grid-template-rows: repeat(2, calc(var(--cell-size) * 4 + 2px));
+  gap: 10px;
+  width: max-content;
+  margin: 0 auto;
+}
+
+.stonepush-boards--thinking {
+  opacity: 0.7;
+}
+
+.stonepush-board {
+  display: grid;
+  grid-template-columns: repeat(4, var(--cell-size));
+  grid-template-rows: repeat(4, var(--cell-size));
+  gap: 1px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1px;
+  transition: opacity 0.15s ease;
+}
+
+.stonepush-board--dark {
+  background: var(--color-bg);
+}
+
+.stonepush-board--light {
+  background: var(--color-surface);
+}
+
+.stonepush-board--dimmed {
+  opacity: 0.35;
+}
+
+.stonepush-cell {
+  position: relative;
+  width: var(--cell-size);
+  height: var(--cell-size);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.stonepush-cell:hover {
+  background: var(--color-surface-hover);
+}
+
+.stonepush-cell--movable {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.stonepush-cell--dimmed .stonepush-stone {
+  opacity: 0.35;
+}
+
+.stonepush-cell--selected {
+  box-shadow: inset 0 0 0 3px var(--color-accent);
+}
+
+.stonepush-cell--destination::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 2px dashed var(--color-accent);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.stonepush-stone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  display: none;
+}
+
+.stonepush-stone--black {
+  display: block;
+  background: #14161a;
+  box-shadow: 0 0 0 1px #4a4f5c;
+}
+
+.stonepush-stone--white {
+  display: block;
+  background: #e8eaed;
+}
+
+.stonepush-actions {
+  margin-top: 16px;
+  text-align: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
