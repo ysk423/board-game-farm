@@ -11,10 +11,12 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../../shared/firebase';
 import { generateRoomId } from '../../../shared/onlineRoomCode';
+import { buildOnlinePlayRecord, PLAY_RECORDS_COLLECTION } from '../../../shared/playRecords';
 import { BATSU, BOARD_SIZE, type Board, createEmptyBoard, MARU, type Stone } from '../logic/board';
 import { checkWin, isBoardFull } from '../logic/rules';
 import type { JoinRoomResult, RoomDoc, RoomSummary, StoneColor, Visibility } from './types';
@@ -28,6 +30,11 @@ function stoneColorToStone(color: StoneColor): Stone {
 
 function opponentOf(color: StoneColor): StoneColor {
   return color === 'maru' ? 'batsu' : 'maru';
+}
+
+// プレイ記録（履歴ページ）用。入力名は載せず「先手」「後手」の役割名のみを記録する
+function roleLabel(color: StoneColor): string {
+  return color === 'maru' ? '先手' : '後手';
 }
 
 // Firestoreは配列の配列（ネスト配列）を直接サポートしないため、
@@ -150,6 +157,11 @@ export async function submitMove(roomId: string, row: number, col: number, color
       winner: win ? color : draw ? 'draw' : null,
       winReason: win ? 'three-in-a-row' : null,
     });
+
+    // 対局が決着した瞬間の書き込みに相乗りさせ、1対局につき1件だけプレイ記録を残す
+    if (win || draw) {
+      tx.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('tictactoe', win ? roleLabel(color) : null));
+    }
   });
 }
 
@@ -161,9 +173,13 @@ export async function sendReaction(roomId: string, by: StoneColor, emoji: string
 }
 
 export async function resign(roomId: string, color: StoneColor): Promise<void> {
-  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+  const winner = opponentOf(color);
+  const batch = writeBatch(db);
+  batch.update(doc(db, ROOMS_COLLECTION, roomId), {
     status: 'finished',
-    winner: opponentOf(color),
+    winner,
     winReason: 'resign',
   });
+  batch.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('tictactoe', roleLabel(winner)));
+  await batch.commit();
 }

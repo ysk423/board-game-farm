@@ -1,5 +1,6 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
+import { recordCpuPlay } from '../../../shared/playRecords';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import { showRulesModal } from '../../../shared/components/rulesModal';
@@ -275,6 +276,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     boardView.setInteractive(false);
     resignButton.disabled = true;
     status.textContent = '';
+    recordCpuPlay('gobblet', difficulty, outcome).catch((error) => console.error(error));
     showResultBanner({
       container,
       result: { outcome, message },

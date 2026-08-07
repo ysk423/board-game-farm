@@ -177,5 +177,34 @@ service cloud.firestore {
         && isValidGobbletBoard(request.resource.data.board);
       allow delete: if false;
     }
+
+    // プレイ記録（履歴ページ用）。対局が決着した時に1件だけ書き込まれる、追記のみのログ。
+    // 認証なしの公開ページから誰でも読める前提のため、個人を特定できる情報は持たない
+    match /playRecords/{recordId} {
+      function isValidGameId(game) {
+        return game in ['gomoku', 'gogo-shogi', 'tictactoe', 'otrio', 'yonmoku', 'gobblet', 'stonepush'];
+      }
+
+      function isValidCpuRecord(data) {
+        return data.difficulty in ['easy', 'medium', 'hard']
+          && data.outcome in ['win', 'lose', 'draw'];
+      }
+
+      function isValidOnlineRecord(data) {
+        return data.winnerLabel == null || data.winnerLabel is string;
+      }
+
+      function isValidNewRecord(data) {
+        return isValidGameId(data.game)
+          && data.mode in ['cpu', 'online']
+          && data.playedAt is timestamp
+          && ((data.mode == 'cpu' && isValidCpuRecord(data)) || (data.mode == 'online' && isValidOnlineRecord(data)));
+      }
+
+      allow read: if true;
+      allow create: if isValidNewRecord(request.resource.data);
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

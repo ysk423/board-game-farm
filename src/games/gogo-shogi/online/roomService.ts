@@ -11,10 +11,12 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../../shared/firebase';
 import { generateRoomId } from '../../../shared/onlineRoomCode';
+import { buildOnlinePlayRecord, PLAY_RECORDS_COLLECTION } from '../../../shared/playRecords';
 import { BOARD_SIZE, createInitialState, type BoardGrid, type GameState, type Square } from '../logic/board';
 import { opponentOf, type Player } from '../logic/pieces';
 import { applyMove, checkRepetition, isCheckmate, isInCheck, positionKey, type HistoryEntry } from '../logic/rules';
@@ -23,6 +25,11 @@ import type { JoinRoomResult, RoomDoc, RoomSummary, Visibility, WinReason } from
 
 const ROOMS_COLLECTION = 'shogiGames';
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // 放置ルームは3時間でFirestoreのTTLにより自動削除
+
+// プレイ記録（履歴ページ）用。入力名は載せず「先手」「後手」の役割名のみを記録する
+function roleLabel(color: Player): string {
+  return color === 'sente' ? '先手' : '後手';
+}
 
 // Firestoreは配列の配列（ネスト配列）を直接サポートしないため、
 // 保存時は5x5の盤面を25要素のフラットな配列に変換し、読み込み時に2次元へ戻す
@@ -169,6 +176,11 @@ export async function submitMove(roomId: string, move: Move, color: Player): Pro
       winner,
       winReason,
     });
+
+    // 対局が決着した瞬間の書き込みに相乗りさせ、1対局につき1件だけプレイ記録を残す
+    if (winner) {
+      tx.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('gogo-shogi', roleLabel(winner)));
+    }
   });
 }
 
@@ -180,9 +192,13 @@ export async function sendReaction(roomId: string, by: Player, emoji: string): P
 }
 
 export async function resign(roomId: string, color: Player): Promise<void> {
-  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+  const winner = opponentOf(color);
+  const batch = writeBatch(db);
+  batch.update(doc(db, ROOMS_COLLECTION, roomId), {
     status: 'finished',
-    winner: opponentOf(color),
+    winner,
     winReason: 'resign',
   });
+  batch.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('gogo-shogi', roleLabel(winner)));
+  await batch.commit();
 }

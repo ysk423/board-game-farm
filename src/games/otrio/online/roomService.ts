@@ -11,16 +11,23 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../../shared/firebase';
 import { generateRoomId } from '../../../shared/onlineRoomCode';
+import { buildOnlinePlayRecord, PLAY_RECORDS_COLLECTION } from '../../../shared/playRecords';
 import { BOARD_SIZE, type Board, type Cell, createInitialState, type GameState, opponentOf, type Player } from '../logic/board';
 import { applyMove, checkWin, isGameOver, type Move } from '../logic/rules';
 import type { JoinRoomResult, RoomDoc, RoomSummary, Visibility } from './types';
 
 const ROOMS_COLLECTION = 'otrioGames';
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // 放置ルームは3時間でFirestoreのTTLにより自動削除
+
+// プレイ記録（履歴ページ）用。入力名は載せず「1P」「2P」の役割名のみを記録する
+function roleLabel(player: Player): string {
+  return `${player}P`;
+}
 
 // Firestoreは配列の配列（ネスト配列）を直接サポートしないため、3x3の盤面を9要素のフラット配列に変換する。
 // 各マスはCellオブジェクト（配列ではない）なので、この変換だけでFirestoreにそのまま保存できる
@@ -143,6 +150,11 @@ export async function submitMove(roomId: string, move: Move, color: Player): Pro
       winner: win ? color : null,
       winReason: win ? 'win' : draw ? 'draw' : null,
     });
+
+    // 対局が決着した瞬間の書き込みに相乗りさせ、1対局につき1件だけプレイ記録を残す
+    if (win || draw) {
+      tx.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('otrio', win ? roleLabel(color) : null));
+    }
   });
 }
 
@@ -154,9 +166,13 @@ export async function sendReaction(roomId: string, by: Player, emoji: string): P
 }
 
 export async function resign(roomId: string, color: Player): Promise<void> {
-  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+  const winner = opponentOf(color);
+  const batch = writeBatch(db);
+  batch.update(doc(db, ROOMS_COLLECTION, roomId), {
     status: 'finished',
-    winner: opponentOf(color),
+    winner,
     winReason: 'resign',
   });
+  batch.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('otrio', roleLabel(winner)));
+  await batch.commit();
 }
