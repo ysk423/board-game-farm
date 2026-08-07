@@ -58,6 +58,7 @@ export async function createRoom(playerName: string, visibility: Visibility, cre
     status: 'waiting',
     winner: null,
     winReason: null,
+    reaction: null,
     createdAt: serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + ROOM_TTL_MS),
   });
@@ -142,6 +143,13 @@ export async function submitMove(roomId: string, move: Move, color: Player): Pro
       winner: win ? color : null,
       winReason: win ? 'win' : draw ? 'draw' : null,
     });
+  });
+}
+
+// スタンプ送信。合法性チェックが不要な一過性の演出のため、着手のようなトランザクションは使わず直接上書きする
+export async function sendReaction(roomId: string, by: Player, emoji: string): Promise<void> {
+  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+    reaction: { by, emoji, sentAt: Date.now() },
   });
 }
 

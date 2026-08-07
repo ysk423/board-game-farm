@@ -29,7 +29,9 @@ export class BoardView {
 
     for (const bp of ALL_BOARD_POSITIONS) {
       const boardEl = document.createElement('div');
-      boardEl.className = `stonepush-board stonepush-board--${BOARD_COLOR_OF[bp]}`;
+      // rowクラスは手前（黒のホーム＝下段）と相手（白のホーム＝上段）の境界線をCSSで引くために付与
+      const row = bp === 'topLeft' || bp === 'topRight' ? 'top' : 'bottom';
+      boardEl.className = `stonepush-board stonepush-board--${BOARD_COLOR_OF[bp]} stonepush-board--row-${row}`;
 
       for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {

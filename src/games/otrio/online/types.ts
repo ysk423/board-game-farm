@@ -9,6 +9,13 @@ export interface PlayerInfo {
   name: string; // 未入力の場合は空文字
 }
 
+// オンライン対戦中のスタンプ機能。対局履歴には残さない一過性の演出のため、常に最新の1件のみ保持する
+export interface Reaction {
+  by: Player;
+  emoji: string;
+  sentAt: number; // クライアントのDate.now()。serverTimestamp()はローカルエコーがnullになり表示が遅れるため使わない
+}
+
 export interface RoomDoc {
   board: Board;
   inventory: Record<Player, Inventory>;
@@ -21,6 +28,7 @@ export interface RoomDoc {
   status: RoomStatus;
   winner: Player | null; // 引き分けの場合はnull
   winReason: WinReason | null;
+  reaction: Reaction | null;
   createdAt: Timestamp;
   expiresAt: Timestamp;
 }

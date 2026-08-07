@@ -33,6 +33,8 @@ import { GAME_NAME, RULES_SECTIONS } from './rulesContent';
 const HUMAN: Player = 'black'; // プレイヤーは黒（先手）固定
 const CPU: Player = 'white';
 const CPU_THINK_DELAY_MS = 300;
+// フォロー（アグレッシブ移動）確定前ならリードをやり直せるようにする対象フェーズ
+const AGGRESSIVE_PHASES: ReadonlySet<GameState['phase']> = new Set(['aggressiveSelect', 'aggressiveConfirm']);
 
 function main(): void {
   const app = document.getElementById('app');
@@ -126,6 +128,16 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     finish('lose', '投了しました');
   });
 
+  const undoLeadButton = document.createElement('button');
+  undoLeadButton.type = 'button';
+  undoLeadButton.className = 'btn';
+  undoLeadButton.textContent = 'リードをやり直す';
+  undoLeadButton.addEventListener('click', () => {
+    if (gameOver || state.currentPlayer !== HUMAN || !AGGRESSIVE_PHASES.has(state.phase)) return;
+    state = cancelAggressiveAndRevertPassive(state);
+    refresh();
+  });
+
   const rulesButton = document.createElement('button');
   rulesButton.type = 'button';
   rulesButton.className = 'btn';
@@ -135,6 +147,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
   const actions = document.createElement('div');
   actions.className = 'stonepush-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(undoLeadButton);
   actions.appendChild(rulesButton);
   container.appendChild(actions);
 
@@ -312,6 +325,8 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     boardView.render(state, computeHighlight());
     boardView.setInteractive(!gameOver && state.currentPlayer === HUMAN);
     resignButton.disabled = gameOver;
+    const canUndoLead = !gameOver && state.currentPlayer === HUMAN && AGGRESSIVE_PHASES.has(state.phase);
+    undoLeadButton.style.display = canUndoLead ? '' : 'none';
     updateStatus();
   }
 

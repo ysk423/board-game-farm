@@ -398,3 +398,83 @@ a {
 .rules-screen__back {
   margin-top: 24px;
 }
+
+/* スタンプ機能（オンライン対戦中の感情表現）。全ゲーム共通 */
+.reaction-control {
+  position: relative;
+  display: inline-block;
+}
+
+.reaction-palette {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.reaction-palette__item {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reaction-palette__item:hover {
+  background: var(--color-surface-hover);
+}
+
+/* 相手側=盤面より上、自分側=操作ボタン付近（下）に表示ゾーンを分ける */
+.reaction-zone {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 52px;
+  pointer-events: none;
+}
+
+.reaction-zone--opponent {
+  margin: 4px 0 8px;
+}
+
+.reaction-zone--own {
+  margin: 8px 0 4px;
+}
+
+.reaction-bubble {
+  font-size: 40px;
+  line-height: 1;
+  animation:
+    reaction-pop 0.2s ease-out,
+    reaction-fade 0.4s ease-in 2.6s forwards;
+}
+
+@keyframes reaction-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes reaction-fade {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
