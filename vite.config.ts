@@ -15,6 +15,7 @@ export default defineConfig({
         yonmoku: resolve(__dirname, 'pages/yonmoku.html'),
         gobblet: resolve(__dirname, 'pages/gobblet.html'),
         stonepush: resolve(__dirname, 'pages/stonepush.html'),
+        history: resolve(__dirname, 'pages/history.html'),
       },
     },
   },
