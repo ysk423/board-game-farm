@@ -21,23 +21,29 @@
 │  ├─ tictactoe.html          # 〇×ゲーム
 │  ├─ otrio.html              # オートリオ
 │  ├─ yonmoku.html            # 四目並べ
-│  └─ gobblet.html            # ゴブレット・ゴブラーズ
+│  ├─ gobblet.html            # ゴブレット・ゴブラーズ
+│  ├─ stonepush.html          # ストーンプッシュ（CPU対戦のみ）
+│  └─ history.html            # 全ゲーム横断のプレイ記録ページ（ポータル配下の扱い）
 ├─ vite.config.ts             # base path・Multi-Page構成
 ├─ tsconfig.json
 ├─ vitest.config.ts
 ├─ package.json
+├─ firestore.rules            # Firestoreセキュリティルール（ゲームごとのroomコレクション＋playRecords）
+├─ firestore.indexes.json     # 複合インデックス定義
 ├─ .github/workflows/deploy.yml   # main push時にGitHub Pagesへ自動デプロイ
 ├─ Docs/                      # 本ドキュメント一式
 ├─ src/
 │  ├─ types/
 │  │  └─ common.ts            # Difficulty, GameOutcome, GameResult など全ゲーム共通の型
 │  ├─ shared/
-│  │  ├─ components/          # header / difficultySelector / resultBanner / rulesScreen（DOMを組み立てて返す関数群）
+│  │  ├─ components/          # header / difficultySelector / resultBanner / rulesScreen / reactionPanel（DOMを組み立てて返す関数群）
 │  │  ├─ onlineRoomCode.ts    # ルーム番号生成（全オンライン対戦ゲーム共通）
 │  │  ├─ firebase.ts          # Firebase App / Firestore初期化
+│  │  ├─ playRecords.ts       # プレイ記録（履歴ページ用）の型・書き込みヘルパー。全ゲーム共通
 │  │  └─ styles/theme.css     # デザイントークン（色・角丸・フォント）と共通UIパーツのCSS
 │  ├─ portal/
 │  │  ├─ main.ts              # トップページのゲームカード描画（配列駆動）
+│  │  ├─ history.ts           # プレイ記録ページ（サマリ集計＋ログ一覧）
 │  │  └─ portal.css
 │  └─ games/
 │     ├─ gomoku/
@@ -60,10 +66,13 @@
 │     │  ├─ logic/
 │     │  ├─ online/            # types.ts / roomService.ts（collection: yonmokuGames）
 │     │  └─ ui/                # boardView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / yonmoku.css
-│     └─ gobblet/               # ゴブレット・ゴブラーズ
-│        ├─ logic/
-│        ├─ online/            # types.ts / roomService.ts（collection: gobbletGames）
-│        └─ ui/                # boardView.ts / inventoryView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / gobblet.css
+│     ├─ gobblet/               # ゴブレット・ゴブラーズ
+│     │  ├─ logic/
+│     │  ├─ online/            # types.ts / roomService.ts（collection: gobbletGames）
+│     │  └─ ui/                # boardView.ts / inventoryView.ts / main.ts / onlineScreen.ts / onlineGameScreen.ts / gobblet.css
+│     └─ stonepush/             # ストーンプッシュ（オンライン対戦なし。online/ディレクトリを持たない）
+│        ├─ logic/            # board.ts / rules.ts / ai.ts
+│        └─ ui/                # boardView.ts / main.ts / rulesContent.ts / stonepush.css
 ```
 
 「ゲームごとにロジックを分離し、共通部分をshared化する」「logic層はDOM非依存の純粋関数群にし、ui層がそれを使って画面を組み立てる」という2つの方針を一貫させている。これによりロジック層はVitestで単体テストしやすく、UI層はlogic層のAPIを呼び出すだけのシンプルな構成になっている。
@@ -79,6 +88,10 @@ DOM要素を組み立てて返す関数として実装（クラスではなく�
 - `difficultySelector.ts`: `renderDifficultySelector({ gameName, onSelect })` — 弱/中/強ボタンを描画し、選択時にコールバック。
 - `resultBanner.ts`: `showResultBanner({ container, result, onReplay })` — 呼び出し元が指定した`container`の末尾（`container.appendChild(banner)`、盤面・持ち駒・操作ボタンより下）に結果バナーを追加する。「もう一度対局する」でコールバック、「ポータルトップへ」リンクを提供。当初は`resultModal.ts`という名前で`document.body`に`position: fixed`のオーバーレイを追加する実装だったが、勝敗確定後に最終盤面が見えなくなる問題があったため、盤面を隠さない非モーダルのバナー方式にリネーム・再実装した。さらに当初はコンテナの先頭に挿入していたため結果表示時に盤面が下にずれて見える問題があり、末尾への追加に変更した（詳細は後述）。
 - `rulesScreen.ts`: `renderRulesScreen({ gameName, sections, onBack })` — 各ゲームのルール説明画面を共通レイアウトで描画。
+- `reactionPanel.ts`: `renderReactionPanel({ onSend })` — オンライン対戦中のスタンプ機能のUIを持つコンポーネント（9章参照）。送信ボタン＋絵文字パレット＋クールダウン管理と、自分側/相手側の表示ゾーン（`opponentZone` / `ownZone`）を提供する。スタンプの送受信ロジック自体（Firestoreへの書き込み・購読データからの検知）は持たず、呼び出し元（各ゲームの`onlineGameScreen.ts`）が`showReaction(side, emoji)`を呼んで表示させる形に責務を分離している。
+
+### shared/playRecords.ts
+プレイ記録ページ（10章参照）用の型（`PlayRecord`、`GameId`、`GAME_TITLES`）と書き込みヘルパー（`recordCpuPlay`、`buildOnlinePlayRecord`）、コレクション名定数（`PLAY_RECORDS_COLLECTION = 'playRecords'`）を持つ。CPU対戦・オンライン対戦のどちらからも参照される、ゲーム非依存の共通モジュール。
 
 なお五五将棋の成り選択ポップアップ（`src/games/gogo-shogi/ui/promotionPrompt.ts`）は「選択を強制する」用途のブロッキングモーダルであるため、`resultBanner.ts`への変更後も`.modal-overlay`/`.modal`クラス（`document.body`への全画面オーバーレイ）を引き続き使用している。結果表示とは目的が異なるため、あえて統一しなかった。
 
@@ -156,6 +169,15 @@ Firebase App / Firestoreインスタンスの初期化。SDK設定値（`apiKey`
 - **`rules.ts`**: `WIN_LENGTH`を`5`→`4`に変更するのみ。`checkWin`（直近着手起点で4方向走査）のロジックは変更なし。
 - **`ai.ts`**: `SCORE`定数のパターン評価を4連基準に1段階シフトした（`four`が最高評価点、以下`openThree`/`three`/`openTwo`/`two`/`one`）。弱/中/強の3段階構成・候補手絞り込み（`CANDIDATE_RADIUS`）・ミニマックス+αβ（`HARD_SEARCH_DEPTH`/`HARD_BRANCH_LIMIT`）はgomokuと同じ値をそのまま踏襲。
 - **オンライン対戦**: gomokuの`online/`・`ui/onlineScreen.ts`・`ui/onlineGameScreen.ts`をコレクション名（`yonmokuGames`）と`winReason`（`'four-in-a-row' | 'resign'`）だけ変えて複製。盤面のシリアライズ（`toWireBoard`/`fromWireBoard`、225要素フラット配列）も同一。
+
+## 4.7 五目並べ・四目並べ盤面のモバイル対応
+
+五目並べ・四目並べの15×15盤（4章・4.6節）は当初セルを`--cell-size: 32px`の固定pxで組んでおり、盤面の実幅が15×32px＋gap/border分＝約496pxに固定されていた。ポータル全体のコンテナ幅（`.container`）は画面幅から左右パディング分を引いた可変幅だが、幅375〜430px程度のスマホでは496pxの盤面がコンテナからはみ出し、当初は`overflow-x: auto`で盤面だけ横スクロールさせて破綻を防いでいた。しかし対局中に盤面全体を一目で見渡せないのは体験として良くないため、以下のように変更した。
+
+- `grid-template-columns/rows`をセル固定px（`repeat(15, 32px)`）ではなく`repeat(15, 1fr)`にし、盤面コンテナ側の幅を`width: min(496px, 100%)` + `aspect-ratio: 1`で「デスクトップでは従来どおり約496px、画面が狭い場合は親要素の幅いっぱいまで縮小」という可変値にした。
+- 各セル要素は`width: 100%; height: 100%`でグリッドセルいっぱいに広がるようにし、`--cell-size`変数自体を廃止した。
+- `aspect-ratio: 1`により、幅が縮んでも常に正方形が保たれ、15列×15行のセルは自動的に均等な正方形になる（CSS Gridの`1fr`トラックはgapを差し引いた残り幅を均等分配するため、追加の計算は不要）。
+- 五目並べ（`gomoku.css`）・四目並べ（`yonmoku.css`）はどちらも同一の15×15盤のため、同じ変更を両ファイルに適用した。他ゲームの盤面（5×5〜4×4程度）はもともと十分小さく対応不要だった。
 
 ## 5. 五五将棋のロジック設計
 
@@ -290,6 +312,44 @@ export type Move =
 ### ui/main.ts の操作フロー
 `selectedSize`（持ち駒選択）と`selectedSource`（盤上の駒選択）の2つの状態を排他的に管理し、`handleCellClick`が両方のケースを1つの関数で分岐処理する。持ち駒を選んで盤面をクリックすれば新規配置、盤上の自分の駒を選んで別マスをクリックすれば移動、という2系統の操作を同じクリックハンドラで受ける設計。オンライン対戦（`ui/onlineGameScreen.ts`）も同じ状態管理・分岐ロジックをFirestoreの`RoomDoc`に対して行う。
 
+## 7.3 ストーンプッシュのロジック設計
+
+実在の抽象ゲーム「プッシュファイト」系のメカニクスを参考に新規設計した2人零和ゲーム。他ゲームと異なり**盤が4枚（2×2配置）**で、1手番が「リード（パッシブ移動）」「フォロー（アグレッシブ移動＝押し出し）」の2段階から成る点が最大の特徴。オンライン対戦は未実装（`online/`ディレクトリを持たない）。
+
+### logic/board.ts
+```ts
+export type BoardPosition = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+export type TurnPhase = 'passiveSelect' | 'passiveConfirm' | 'aggressiveSelect' | 'aggressiveConfirm' | 'gameOver';
+export interface GameState {
+  boards: Record<BoardPosition, BoardState>;
+  currentPlayer: Player;
+  phase: TurnPhase;
+  selectedPassiveFrom: { boardPosition: BoardPosition; pos: Pos } | null;
+  passiveMove: Move | null;       // アグレッシブ側の方向・歩数決定とキャンセル時の巻き戻しに使う
+  selectedAggressiveFrom: { boardPosition: BoardPosition; pos: Pos } | null;
+  winner: Player | null;
+}
+```
+`BOARD_COLOR_OF`（左上・右下=dark、右上・左下=light の固定マッピング）と`HOME_PLAYER_OF`（上段2枚=白、下段2枚=黒）で盤配置を定義。`TurnPhase`が5値のステートマシンになっているのは、「リードの石を選ぶ→確定する→フォローの石を選ぶ→確定する」という1手番内の4段階UIをそのまま状態として表現するため（`ui/main.ts`のクリックハンドラはこの`phase`で分岐する）。
+
+### logic/rules.ts
+- `legalPassiveMoves(state)`: 自分のホームボード2枚それぞれで、8方向×1〜2歩の移動候補を列挙した後、**「その移動を選んだ場合に合法なフォローが1手も無い手」をデッドエンドとして除外**する（`legalAggressiveMoves`を内部で呼んで検証）。これによりUIは「選べるリード」だけをハイライトすればよく、選んだ後にフォローが打てず詰む事態を防いでいる。
+- `legalAggressiveMoves(state, passiveMove)`: リードで使ったボードと逆色の2枚のボードそれぞれで、リードと同じ方向・歩数の移動を評価する`resolveAggressiveMove`を呼び、合法な移動先（押し出し結果を含む）を列挙する。方向・歩数はリードに固定されるため、フォロー側は「動かす石」を選ぶだけで移動先が一意に決まる。
+- `resolveAggressiveMove`: 経路上の敵石が1個までなら押し出し可（2個以上連続では不可）、押し出し先に別の石があれば不可、盤外に押し出されれば消滅、という判定を1関数に集約。
+- `applyPassiveMove` / `applyAggressiveMove`: 状態遷移のみを行う純粋関数。`applyAggressiveMove`は勝敗判定（いずれかの盤で相手の石が0個になれば直前に動いたプレイヤーの勝ち）と、次手番のデッドロック判定（次の手番に合法なリードが1つも無ければ、その時点で反則負けとして`gameOver`にする）を行う。
+- `cancelAggressiveAndRevertPassive`: フォロー選択中にキャンセルすると、適用済みのリード移動を手動で逆適用して`passiveSelect`へ戻す。UIの「リードをやり直す」ボタン（8章参照）と、フォロー選択中に無効なマスをクリックした場合の両方から呼ばれる。
+
+### logic/ai.ts
+弱=合法なリードの中からランダム選択後、対応する合法なフォローもランダム選択。中/強は「石を押し出す／押し出されるリスク」を評価する簡易関数によるミニマックスで、リードとフォローを1手としてまとめて評価する（他ゲームのような単純な1マス評価ではなく、リード×フォローの組み合わせ全体を候補手として探索する点が特徴）。
+
+### ui層
+盤面は2×2グリッドの中に4枚の4×4盤（各`grid-template-columns: repeat(4, var(--cell-size))`）を並べる構成。当初はdark/light盤の背景色が濃淡の近いグレー系（`--color-bg`/`--color-surface`）で分かりづらく、かつセルが透明でマス目の格子線が見えない状態だったため、以下のUI改善を行った（ユーザーからの要望に基づく）。
+
+- 盤の配色を木盤風の茶色（`--stonepush-dark: #6b4226`、`--stonepush-light: #d8b98c`、格子線`--stonepush-line: #3a2415`）に変更し、dark/lightの差を明確化。
+- セル自体に色を持たせ、盤コンテナの背景色をgap分だけ見せることで格子線を表現（従来は透明セルで格子が全く見えなかった）。
+- `BoardView`が生成する各盤要素に`stonepush-board--row-top`/`--row-bottom`のクラスを付与し、下段（自分のホーム）にのみ`border-top`でアクセントカラーの境界線を引くことで、相手側/自分側の境目を視覚化。
+- 「リードをやり直す」ボタンを対局画面の操作ボタン列に追加。`aggressiveSelect`/`aggressiveConfirm`フェーズの間だけ表示し、押すと`cancelAggressiveAndRevertPassive`を呼んでリード選択からやり直せるようにした（従来は無効なマスをクリックした時だけ暗黙的にキャンセルされる仕様で、操作として発見しづらかったため、明示的なボタンを追加した）。
+
 ## 8. UI層の設計パターン
 
 両ゲームともUI層は以下の責務分担で統一している。
@@ -301,7 +361,88 @@ export type Move =
 - 成り／不成りの両方が合法手として存在する場合の選択ポップアップ（`showPromotionPrompt`）表示。
 - 千日手判定用の着手履歴（`HistoryEntry[]`）の記録と、`checkRepetition`の呼び出し（CPU対戦はローカル変数、オンライン対戦はFirestoreドキュメントの`history`フィールドとして保持）。
 
-## 9. テスト戦略
+## 9. スタンプ機能（オンライン対戦の共通リアクション）の設計
+
+対局中の感情表現を相手に伝えるスタンプ機能。**新しい通信経路を増やさず、既存のオンライン対戦の仕組みにそのまま乗せる**ことを設計方針の中心に据えた。
+
+### 既存のリアルタイム同期への相乗り
+オンライン対戦は元々、各ゲームの`RoomDoc`（Firestoreの1ドキュメント）を両プレイヤーが`onSnapshot`で購読し、着手のたびに`updateDoc`/`runTransaction`でドキュメントを書き換えることで同期している。スタンプはこの`RoomDoc`に`reaction: { by, emoji, sentAt } | null`というフィールドを1つ追加しただけで、盤面同期と同じ購読・同じ書き込み経路に乗せている。
+
+```ts
+export interface Reaction {
+  by: StoneColor; // ゲームごとのプレイヤー識別子型（StoneColor/Player等）
+  emoji: string;
+  sentAt: number; // クライアントのDate.now()
+}
+```
+
+- `sentAt`に Firestore の`serverTimestamp()`を使わなかった理由: `serverTimestamp()`は書き込んだ本人のローカルエコー（サーバ確定前の楽観的反映）では値が`null`になるため、送信者自身の画面で表示が一瞬遅れる／ちらつく。スタンプは多少のズレが問題にならない一過性の演出なので、単純な数値タイムスタンプで即時性を優先した。
+- 受信側は`onSnapshot`のコールバック内で「`reaction.sentAt`が前回記録した基準値より新しいか」を比較し、新しければ`reaction.by`が自分の識別子と一致するかどうかで自分側（`own`）/相手側（`opponent`）どちらのゾーンに表示するかを決める。初回スナップショット時は基準値を記録するだけで表示はしない（ルーム作成〜再入室時に古い`reaction`が残っていても誤って表示しないためのガード）。
+- 送信自体は各ゲームの`roomService.ts`に`sendReaction(roomId, by, emoji)`として実装し、合法性チェックが不要なため`runTransaction`は使わず`updateDoc`で直接上書きする。
+
+### UIコンポーネント（`shared/components/reactionPanel.ts`）
+`renderReactionPanel({ onSend })`が返す`{ control, opponentZone, ownZone, showReaction, setEnabled, dispose }`を各ゲームの`onlineGameScreen.ts`が組み込む。
+
+- `control`: 「スタンプ」ボタンと絵文字パレットのコンテナ。ボタンクリックでパレットの表示を切り替え、外側クリックで閉じる。**実装時の落とし穴**: パレットの開閉をDOMの`hidden`属性で行っていたが、CSS側で`.reaction-palette`に`display: flex`を明示指定していたため、`[hidden] { display: none }`というUAスタイル（属性セレクタで詳細度が低い）が`.reaction-palette`というクラスセレクタの`display: flex`に負けて機能しなかった（常にパレットが開いた状態になるバグ）。`palette.style.display`をJS側で直接切り替える方式に修正して解消した。
+- `opponentZone` / `ownZone`: 呼び出し元がそれぞれ盤面より上（相手側）・操作ボタン付近（手前側）に配置する表示ゾーン。`showReaction(side, emoji)`が呼ばれるとゾーン内に絵文字を挿入し、3秒後に自動で取り除く。
+- `setEnabled(enabled)`: 対局が`playing`状態のときだけボタンを表示する（待機中・終局後は非表示）。
+- `dispose()`: パレット外クリック検知用の`document`への`click`リスナーを解除する。各ゲームの`onlineGameScreen.ts`が返す`dispose`（Firestore購読解除）と合わせて呼び出すことで、画面遷移時のリスナー・購読の両方をクリーンアップする。
+
+### 連打対策
+送信ボタンは送信直後にdisabledになり、3秒後に再度有効化される（`window.setTimeout`によるクールダウン管理のみで、サーバー側の制限は設けていない。認証なし・性善説ベースの既存方針を踏襲）。
+
+## 10. プレイ記録機能の設計
+
+全ゲーム横断でCPU対戦・オンライン対戦の結果を記録し、`pages/history.html`で一覧できる機能。
+
+### データモデル（`shared/playRecords.ts`）
+```ts
+export type PlayRecord =
+  | { game: GameId; mode: 'cpu'; difficulty: Difficulty; outcome: GameOutcome; playedAt: Timestamp }
+  | { game: GameId; mode: 'online'; winnerLabel: string | null; playedAt: Timestamp };
+```
+CPU対戦とオンライン対戦で記録の性質が異なる（CPU対戦はプレイヤー視点の勝敗、オンライン対戦は客観的な勝者）ことをそのまま型に表現し、無理に共通のフィールド構成へ寄せていない。オンライン対戦側の`winnerLabel`は「先手」「後手」「1P」「2P」のようなゲームごとの役割名の文字列で、対戦相手が任意入力した名前は含めない（個人情報を載せないという要件のため）。
+
+### 書き込み経路
+- **CPU対戦**: 各ゲームの`ui/main.ts`にある対局終了処理（`finish()`/`endGame()`、勝敗確定時に必ず通る箇所）から`recordCpuPlay(game, difficulty, outcome)`を呼ぶ。`addDoc`による単純な追記で、失敗しても対局の続行には影響しないよう`.catch(console.error)`で握りつぶす（記録の成否がゲーム体験をブロックしないようにするため）。
+- **オンライン対戦（1対局につき1件だけ記録する設計）**: 両プレイヤーがそれぞれ`onSnapshot`で`status: 'finished'`への変化を観測するため、素朴に「終局を検知したら記録する」実装にすると2クライアント分＝2件記録されてしまう。これを避けるため、**対局を決着させる書き込みそのものに記録を相乗りさせる**設計にした。
+  - 勝敗が決まる着手は`roomService.submitMove`内の`runTransaction`で処理されるため、勝敗判定後の`tx.update(roomRef, {...})`と同じトランザクション内で`tx.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord(...))`を呼ぶ。
+  - 投了は`roomService.resign`内の単純な`updateDoc`だったが、記録を同時に書き込むため`writeBatch`に変更し、ルーム更新と記録追加を1つのバッチで`commit`する。
+  - どちらの方式でも「決着を成立させる操作を行った1クライアントだけが1回だけ書き込む」ため、閲覧者側の人数（何人がその瞬間画面を見ているか）に関係なく常に1件になる。
+
+### 履歴ページ（`portal/history.ts`）
+- Firestoreへの問い合わせは`getDocs(query(collection(db, 'playRecords'), orderBy('playedAt', 'desc'), limit(500)))`の1回のみ（`onSnapshot`によるリアルタイム更新はしない、静的なレポートページとして割り切った設計）。単一フィールドの`orderBy`のみのクエリのため、複合インデックスの追加は不要。
+- 取得した最大500件から、サマリ（ゲーム×モードごとの集計）とログ（1件1行のテーブル）の両方をクライアント側で計算・描画する。同じデータソースから2つの見せ方を作ることで、追加のクエリを発生させていない。
+- テーブルは幅の狭い画面で崩れないよう、`<table>`自体ではなく`overflow-x: auto`の`.history-table-wrap`でラップし、テーブルには`min-width`を設定して横スクロールで対応する（4.7節のモバイル対応と同じ「コンテナ側でスクロールを吸収する」考え方）。
+
+### firestore.rulesの`playRecords`コレクション
+```
+match /playRecords/{recordId} {
+  allow read: if true;
+  allow create: if isValidNewRecord(request.resource.data); // game/mode/playedAtの形式とmodeごとの必須フィールドを検証
+  allow update: if false;
+  allow delete: if false;
+}
+```
+他のゲームのroomコレクションと同じく認証なし・性善説ベースだが、プレイ記録は「一度書いたら変更しない追記専用ログ」という性質のため、**クライアントからの`update`/`delete`をルールで一律禁止**している（誤操作や悪意のある書き換え・削除からログの整合性を守るため）。
+
+### Firebaseから記録を削除する方法（管理者操作）
+上記のとおりクライアント（ブラウザ上のアプリ）からは`delete`できない設計だが、これは**FirestoreセキュリティルールがクライアントSDK経由のリクエストにのみ適用される**ためであり、プロジェクト所有者がFirebase ConsoleやFirebase CLIから操作する場合はルールを経由しない（管理者権限であるため）。記録を消したい場合は以下のいずれかで行う。
+
+1. **Firebase Console**（GUI）: https://console.firebase.google.com/project/board-game-farm/firestore を開き、`playRecords`コレクションから対象ドキュメントを個別に削除、またはコレクションメニューの「Delete collection」で一括削除する。
+2. **Firebase CLI**（まとめて/スクリプトで消したい場合）:
+   ```bash
+   # コレクション全体を削除（--recursiveが必須）
+   npx firebase firestore:delete playRecords --recursive
+
+   # 特定の1件だけ削除（ドキュメントIDはConsoleで確認）
+   npx firebase firestore:delete playRecords/<ドキュメントID>
+   ```
+   確認プロンプトが出るため、自動実行したい場合は`--force`を付ける。**元に戻せない操作のため、実行前に対象範囲をよく確認すること。**
+
+`firestore.rules`自体を編集してルール上で`delete`を許可する方法もあるが、それだと誰でも他人の記録を削除できてしまい追記専用ログの意図が崩れるため、意図的に採用していない。削除は常に管理者操作（Console/CLI）で行う方針。
+
+## 11. テスト戦略
 
 Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテストを作成している（UI層のE2Eテストは対象外）。
 
@@ -309,20 +450,23 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 - 四目並べ: `rules.test.ts`（4連判定）、`ai.test.ts`（弱/強AIの必勝手発見、5連ではなく4連基準であること）
 - ゴブレット・ゴブラーズ: `rules.test.ts`（被せ配置の可否、被せ後も下の駒が残ること、移動で移動元が空く/下の駒が現れること、勝敗判定、`checkRepetition`の千日手判定）、`ai.test.ts`（各難易度が合法手を返すスモークテスト、勝てる手を見逃さないこと）
 - 五五将棋: `rules.test.ts`（初期局面の王手なし判定、二歩、行き所のない駒、歩の成り強制、王手放置の禁止、詰み判定、`applyMove`の持ち駒変換）、`ai.test.ts`（各難易度が初期局面から合法手を返すスモークテスト、`checkRepetition`の千日手・連続王手判定）
+- ストーンプッシュ: `rules.test.ts`（合法なリード/フォローの列挙、デッドエンドとなるリードの除外、押し出し・盤外消滅の判定、`cancelAggressiveAndRevertPassive`によるリード巻き戻し）、`ai.test.ts`（各難易度が初期局面から合法な手を返すスモークテスト）
 
 特に五五将棋は「二歩」「打ち歩詰め」「行き所のない駒」「千日手の特殊ルール」など見落としやすいルールが多いため、実装時に個別のテストケースを用意して正しさを担保した。
 
-## 10. ビルド・デプロイ構成
+## 12. ビルド・デプロイ構成
 
-- `vite.config.ts`: `base: '/board-game-farm/'`、7エントリのMulti-Page構成。
+- `vite.config.ts`: `base: '/board-game-farm/'`、9エントリ（ポータルトップ＋ゲーム7種＋プレイ記録ページ）のMulti-Page構成。
 - `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
 - ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
+- `firestore.rules`はGitHub Actionsのデプロイ対象に含まれない（ビルド成果物はGitHub Pagesへの静的ファイルのみ）。ルールを変更した場合は`npx firebase deploy --only firestore:rules`を手動実行してFirebase側へ反映する必要がある（10章参照）。ローカルの`firestore.rules`を編集しただけでは本番のFirestoreには反映されない点に注意。
 
-## 11. 今後の拡張ポイント（Phase 3向けメモ）
+## 13. 今後の拡張ポイント（Phase 3向けメモ）
 
-6ゲームすべてでCPU対戦・オンライン対戦の両方が実装済み（Phase 2完了）。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが6ゲーム分実証済みなのでそのまま踏襲できる:
+オンライン対戦を持つ6ゲームすべてでCPU対戦・オンライン対戦の両方が実装済み（Phase 2完了）。ストーンプッシュ（7.3節）はCPU対戦のみで追加済み。新規ゲームを追加する場合は `src/games/<game-id>/{logic,ui}` を追加し、`src/portal/main.ts` の `GAMES` 配列にカードを1件追加し、`vite.config.ts` の `rollupOptions.input` にHTMLエントリを追加すればよい。オンライン対戦まで追加する場合は、以下のパターンが6ゲーム分実証済みなのでそのまま踏襲できる:
 
 - `shared/firebase.ts`（Firestore初期化）は共通利用し、`shared/onlineRoomCode.ts`（ルーム番号生成）も共通利用する。
 - ゲーム固有の状態はそのゲーム専用のFirestoreコレクションに保存する（`games`, `shogiGames`のように分離）。
 - 盤面が2次元配列の場合はFirestoreがネスト配列を扱えないため、`toWireBoard`/`fromWireBoard`パターンでフラット配列化する（4.5節・5.5節参照）。盤面の各マスが配列（スタック等）を持つ場合は単純なフラット化では対応できないため、ゴブレット・ゴブラーズ（7.2節）のような固定長エンコード方式を検討する。
 - ロビー画面（`ui/onlineScreen.ts`）・対局画面（`ui/onlineGameScreen.ts`）はゲームごとに個別実装し、`ui/main.ts`側で`activeDispose`パターンによりFirestore購読のライフサイクルを管理する。「ルームを作成する」UIは設定（先手/後手・公開/非公開など）をすべて選んでから単一の実行ボタンを押す構成にする（3節参照）。
+- オンライン対戦を追加するゲームでは、スタンプ機能（9章）とプレイ記録（10章）も同じパターンで追加する: `onlineGameScreen.ts`に`renderReactionPanel`を組み込み、`roomService.ts`の決着処理（`submitMove`のトランザクション・`resign`）に`buildOnlinePlayRecord`の書き込みを相乗りさせ、`firestore.rules`の新コレクションブロックを追加してデプロイする。

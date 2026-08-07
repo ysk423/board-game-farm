@@ -11,10 +11,12 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../../shared/firebase';
 import { generateRoomId } from '../../../shared/onlineRoomCode';
+import { buildOnlinePlayRecord, PLAY_RECORDS_COLLECTION } from '../../../shared/playRecords';
 import {
   BOARD_SIZE,
   type Board,
@@ -31,6 +33,11 @@ import type { JoinRoomResult, RoomDoc, RoomSummary, Visibility } from './types';
 
 const ROOMS_COLLECTION = 'gobbletGames';
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // 放置ルームは3時間でFirestoreのTTLにより自動削除
+
+// プレイ記録（履歴ページ）用。入力名は載せず「1P」「2P」の役割名のみを記録する
+function roleLabel(player: Player): string {
+  return `${player}P`;
+}
 
 // マスは駒のスタック（配列）であり、Firestoreはネスト配列を扱えないため、
 // 各マスを固定長3要素（下から上へ）の数値配列にエンコードし、9マス×3要素=27要素の
@@ -186,6 +193,11 @@ export async function submitMove(roomId: string, move: Move, color: Player): Pro
       winner: win ? color : null,
       winReason: win ? 'line' : draw ? 'repetition' : null,
     });
+
+    // 対局が決着した瞬間の書き込みに相乗りさせ、1対局につき1件だけプレイ記録を残す
+    if (win || draw) {
+      tx.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('gobblet', win ? roleLabel(color) : null));
+    }
   });
 }
 
@@ -197,9 +209,13 @@ export async function sendReaction(roomId: string, by: Player, emoji: string): P
 }
 
 export async function resign(roomId: string, color: Player): Promise<void> {
-  await updateDoc(doc(db, ROOMS_COLLECTION, roomId), {
+  const winner = opponentOf(color);
+  const batch = writeBatch(db);
+  batch.update(doc(db, ROOMS_COLLECTION, roomId), {
     status: 'finished',
-    winner: opponentOf(color),
+    winner,
     winReason: 'resign',
   });
+  batch.set(doc(collection(db, PLAY_RECORDS_COLLECTION)), buildOnlinePlayRecord('gobblet', roleLabel(winner)));
+  await batch.commit();
 }

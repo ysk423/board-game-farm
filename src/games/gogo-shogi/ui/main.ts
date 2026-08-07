@@ -1,5 +1,6 @@
 import { renderHeader } from '../../../shared/components/header';
 import { renderDifficultySelector } from '../../../shared/components/difficultySelector';
+import { recordCpuPlay } from '../../../shared/playRecords';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { renderRulesScreen } from '../../../shared/components/rulesScreen';
 import { showRulesModal } from '../../../shared/components/rulesModal';
@@ -336,6 +337,7 @@ function startGame(container: HTMLElement, difficulty: Difficulty): void {
     gameOver = true;
     boardView.setInteractive(false);
     refresh();
+    recordCpuPlay('gogo-shogi', difficulty, outcome).catch((error) => console.error(error));
     showResultBanner({
       container,
       result: { outcome, message },
