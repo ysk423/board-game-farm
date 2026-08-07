@@ -1,5 +1,9 @@
 :root {
   --color-accent: var(--color-accent-stonepush);
+  /* 従来はdark/lightの差がグレー系同士で分かり難かったため、木盤風の茶色ベースに変更 */
+  --stonepush-dark: #6b4226;
+  --stonepush-light: #d8b98c;
+  --stonepush-line: #3a2415;
 }
 
 .stonepush-status {
@@ -27,19 +31,26 @@
   display: grid;
   grid-template-columns: repeat(4, var(--cell-size));
   grid-template-rows: repeat(4, var(--cell-size));
-  gap: 1px;
-  border: 1px solid var(--color-border);
+  /* gapとpaddingをbackground(--stonepush-line)の色で見せることでマス目の格子線にする */
+  gap: 2px;
+  background: var(--stonepush-line);
+  border: 2px solid var(--stonepush-line);
   border-radius: var(--radius);
-  padding: 1px;
+  padding: 2px;
   transition: opacity 0.15s ease;
 }
 
-.stonepush-board--dark {
-  background: var(--color-bg);
+/* 手前（黒のホーム＝下段）と相手（白のホーム＝上段）の間に境界線を引く */
+.stonepush-board--row-bottom {
+  border-top: 3px solid var(--color-accent);
 }
 
-.stonepush-board--light {
-  background: var(--color-surface);
+.stonepush-board--dark .stonepush-cell {
+  background: var(--stonepush-dark);
+}
+
+.stonepush-board--light .stonepush-cell {
+  background: var(--stonepush-light);
 }
 
 .stonepush-board--dimmed {
@@ -52,12 +63,11 @@
   height: var(--cell-size);
   padding: 0;
   border: none;
-  background: transparent;
   cursor: pointer;
 }
 
 .stonepush-cell:hover {
-  background: var(--color-surface-hover);
+  filter: brightness(1.15);
 }
 
 .stonepush-cell--movable {
@@ -95,7 +105,8 @@
 .stonepush-stone--black {
   display: block;
   background: #14161a;
-  box-shadow: 0 0 0 1px #4a4f5c;
+  /* 濃い茶色の盤上でも黒石の輪郭が見えるよう、縁取りを明るい色にしている */
+  box-shadow: 0 0 0 1.5px #d8b98c;
 }
 
 .stonepush-stone--white {

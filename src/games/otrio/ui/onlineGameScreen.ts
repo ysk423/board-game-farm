@@ -1,9 +1,10 @@
+import { renderReactionPanel } from '../../../shared/components/reactionPanel';
 import { showResultBanner } from '../../../shared/components/resultBanner';
 import { showRulesModal } from '../../../shared/components/rulesModal';
 import type { GameOutcome } from '../../../types/common';
 import { opponentOf, type Player, type Size } from '../logic/board';
 import { getLegalMoves, type Move } from '../logic/rules';
-import { resign as resignRoom, subscribeToRoom, submitMove } from '../online/roomService';
+import { resign as resignRoom, sendReaction, subscribeToRoom, submitMove } from '../online/roomService';
 import type { RoomDoc, WinReason } from '../online/types';
 import { BoardView } from './boardView';
 import { InventoryView } from './inventoryView';
@@ -50,6 +51,8 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   let selectedSize: Size | null = null;
   let latestRoom: RoomDoc | null = null;
   let resultShown = false;
+  let lastReactionSentAt = 0;
+  let reactionInitialized = false;
 
   const wrapper = document.createElement('div');
 
@@ -61,6 +64,13 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   const status = document.createElement('p');
   status.className = 'otrio-status';
   wrapper.appendChild(status);
+
+  const reactionPanel = renderReactionPanel({
+    onSend: (emoji) => {
+      sendReaction(roomId, color, emoji).catch((error) => console.error(error));
+    },
+  });
+  wrapper.appendChild(reactionPanel.opponentZone);
 
   const layout = document.createElement('div');
   layout.className = 'otrio-layout';
@@ -91,8 +101,10 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
   const actions = document.createElement('div');
   actions.className = 'otrio-actions';
   actions.appendChild(resignButton);
+  actions.appendChild(reactionPanel.control);
   actions.appendChild(rulesButton);
   wrapper.appendChild(actions);
+  wrapper.appendChild(reactionPanel.ownZone);
 
   function handleSizeClick(size: Size): void {
     if (!latestRoom || latestRoom.status !== 'playing' || latestRoom.turn !== color) return;
@@ -132,6 +144,7 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     myInventoryView.render(latestRoom.inventory[color], selectedSize);
     boardView.setInteractive(latestRoom.status === 'playing' && latestRoom.turn === color);
     resignButton.disabled = latestRoom.status !== 'playing';
+    reactionPanel.setEnabled(latestRoom.status === 'playing');
     updateStatus(latestRoom);
 
     if (latestRoom.status === 'finished' && !resultShown) {
@@ -145,15 +158,36 @@ export function renderOnlineGameScreen(options: OnlineGameScreenOptions): Online
     }
   }
 
+  // 初回スナップショットで既にreactionが入っていても再表示しないよう、初回はsentAtの基準値を記録するだけにする
+  function handleReaction(room: RoomDoc): void {
+    if (!reactionInitialized) {
+      lastReactionSentAt = room.reaction?.sentAt ?? 0;
+      reactionInitialized = true;
+      return;
+    }
+    const reaction = room.reaction;
+    if (reaction && reaction.sentAt > lastReactionSentAt) {
+      lastReactionSentAt = reaction.sentAt;
+      reactionPanel.showReaction(reaction.by === color ? 'own' : 'opponent', reaction.emoji);
+    }
+  }
+
   const unsubscribe = subscribeToRoom(roomId, (room) => {
     if (!room) {
       status.textContent = 'ルームが見つかりませんでした（削除された可能性があります）';
       boardView.setInteractive(false);
       return;
     }
+    handleReaction(room);
     latestRoom = room;
     render();
   });
 
-  return { element: wrapper, dispose: unsubscribe };
+  return {
+    element: wrapper,
+    dispose: () => {
+      unsubscribe();
+      reactionPanel.dispose();
+    },
+  };
 }
