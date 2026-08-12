@@ -1,26 +1,61 @@
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '../shared/firebase';
 import { renderHeader } from '../shared/components/header';
-import { DIFFICULTY_LABELS } from '../types/common';
+import { DIFFICULTY_LABELS, type Difficulty } from '../types/common';
 import { GAME_TITLES, PLAY_RECORDS_COLLECTION, type GameId, type PlayRecord } from '../shared/playRecords';
 
 const ALL_GAMES = Object.keys(GAME_TITLES) as GameId[];
+const DIFFICULTIES = Object.keys(DIFFICULTY_LABELS) as Difficulty[];
 
 // 直近500件のみ集計対象にする（無制限に読み込むとFirestoreの読み取り件数が際限なく増えるため）
 const LOG_LIMIT = 500;
 
+interface DifficultyStat {
+  total: number;
+  win: number;
+  lose: number;
+  draw: number;
+}
+
 interface GameSummary {
-  cpuTotal: number;
-  cpuWin: number;
-  cpuLose: number;
-  cpuDraw: number;
+  cpuByDifficulty: Record<Difficulty, DifficultyStat>;
   onlineTotal: number;
+  onlineSenteWin: number;
+  onlineGoteWin: number;
   onlineDraw: number;
-  onlineWinnerCounts: Map<string, number>;
+}
+
+function createEmptyDifficultyStat(): DifficultyStat {
+  return { total: 0, win: 0, lose: 0, draw: 0 };
 }
 
 function createEmptySummary(): GameSummary {
-  return { cpuTotal: 0, cpuWin: 0, cpuLose: 0, cpuDraw: 0, onlineTotal: 0, onlineDraw: 0, onlineWinnerCounts: new Map() };
+  return {
+    cpuByDifficulty: Object.fromEntries(DIFFICULTIES.map((d) => [d, createEmptyDifficultyStat()])) as Record<Difficulty, DifficultyStat>,
+    onlineTotal: 0,
+    onlineSenteWin: 0,
+    onlineGoteWin: 0,
+    onlineDraw: 0,
+  };
+}
+
+// ゴブレット・ゴブラーズ/オートリオは勝者ラベルが「先手/後手」ではなく「1P/2P」（部屋作成者が
+// 自由に選べる役名）で記録される。ただしゲームロジック上1Pは必ず先手番として開始するため、
+// 集計上は1P=先手・2P=後手とみなして他ゲームと合算する
+function isSenteLabel(winnerLabel: string): boolean {
+  return winnerLabel === '先手' || winnerLabel === '1P';
+}
+
+function sumDifficultyStats(summary: GameSummary): DifficultyStat {
+  return DIFFICULTIES.reduce((acc, difficulty) => {
+    const stat = summary.cpuByDifficulty[difficulty];
+    return {
+      total: acc.total + stat.total,
+      win: acc.win + stat.win,
+      lose: acc.lose + stat.lose,
+      draw: acc.draw + stat.draw,
+    };
+  }, createEmptyDifficultyStat());
 }
 
 function summarize(records: PlayRecord[]): Record<GameId, GameSummary> {
@@ -29,16 +64,19 @@ function summarize(records: PlayRecord[]): Record<GameId, GameSummary> {
   for (const record of records) {
     const summary = summaries[record.game];
     if (record.mode === 'cpu') {
-      summary.cpuTotal++;
-      if (record.outcome === 'win') summary.cpuWin++;
-      else if (record.outcome === 'lose') summary.cpuLose++;
-      else summary.cpuDraw++;
+      const stat = summary.cpuByDifficulty[record.difficulty];
+      stat.total++;
+      if (record.outcome === 'win') stat.win++;
+      else if (record.outcome === 'lose') stat.lose++;
+      else stat.draw++;
     } else {
       summary.onlineTotal++;
       if (record.winnerLabel === null) {
         summary.onlineDraw++;
+      } else if (isSenteLabel(record.winnerLabel)) {
+        summary.onlineSenteWin++;
       } else {
-        summary.onlineWinnerCounts.set(record.winnerLabel, (summary.onlineWinnerCounts.get(record.winnerLabel) ?? 0) + 1);
+        summary.onlineGoteWin++;
       }
     }
   }
@@ -46,18 +84,38 @@ function summarize(records: PlayRecord[]): Record<GameId, GameSummary> {
   return summaries;
 }
 
-function formatCpuCell(summary: GameSummary): string {
-  if (summary.cpuTotal === 0) return '記録なし';
-  const parts = [`${summary.cpuTotal}戦`, `${summary.cpuWin}勝${summary.cpuLose}敗`];
-  if (summary.cpuDraw > 0) parts.push(`${summary.cpuDraw}分`);
-  return parts.join(' ');
+function formatCpuStatCell(stat: DifficultyStat): string {
+  if (stat.total === 0) return '記録なし';
+  const parts = [`${stat.win}勝${stat.lose}敗`];
+  if (stat.draw > 0) parts.push(`${stat.draw}分`);
+  return parts.join('');
 }
 
-function formatOnlineCell(summary: GameSummary): string {
-  if (summary.onlineTotal === 0) return '記録なし';
-  const breakdown = [...summary.onlineWinnerCounts.entries()].map(([label, count]) => `${label}${count}`);
-  if (summary.onlineDraw > 0) breakdown.push(`引き分け${summary.onlineDraw}`);
-  return `${summary.onlineTotal}戦（${breakdown.join(' / ')}）`;
+function appendOnlineCells(row: HTMLTableRowElement, summary: GameSummary): void {
+  if (summary.onlineTotal === 0) {
+    const emptyCell = document.createElement('td');
+    emptyCell.className = 'history-table__col-divider history-table__empty';
+    emptyCell.colSpan = 2;
+    emptyCell.textContent = '記録なし';
+    row.appendChild(emptyCell);
+    return;
+  }
+
+  const senteCell = document.createElement('td');
+  senteCell.className = 'history-table__col-divider history-table__win history-table__win--sente';
+  senteCell.textContent = `${summary.onlineSenteWin}勝`;
+  row.appendChild(senteCell);
+
+  const goteCell = document.createElement('td');
+  goteCell.className = 'history-table__win history-table__win--gote';
+  goteCell.textContent = `${summary.onlineGoteWin}勝`;
+  if (summary.onlineDraw > 0) {
+    const drawNote = document.createElement('span');
+    drawNote.className = 'history-table__draw-note';
+    drawNote.textContent = ` ・分${summary.onlineDraw}`;
+    goteCell.appendChild(drawNote);
+  }
+  row.appendChild(goteCell);
 }
 
 function renderSummaryTable(records: PlayRecord[]): HTMLElement {
@@ -67,7 +125,19 @@ function renderSummaryTable(records: PlayRecord[]): HTMLElement {
   table.className = 'history-table';
 
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>ゲーム</th><th>CPU対戦</th><th>オンライン対戦</th></tr>';
+  thead.innerHTML = `
+    <tr>
+      <th rowspan="2">ゲーム</th>
+      <th colspan="4" class="history-table__group">CPU対戦</th>
+      <th colspan="2" class="history-table__group history-table__group--online history-table__col-divider">オンライン対戦</th>
+    </tr>
+    <tr>
+      ${DIFFICULTIES.map((d) => `<th>${DIFFICULTY_LABELS[d]}</th>`).join('')}
+      <th>Total</th>
+      <th class="history-table__col-divider">先手</th>
+      <th>後手</th>
+    </tr>
+  `;
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
@@ -79,13 +149,18 @@ function renderSummaryTable(records: PlayRecord[]): HTMLElement {
     nameCell.textContent = GAME_TITLES[game];
     row.appendChild(nameCell);
 
-    const cpuCell = document.createElement('td');
-    cpuCell.textContent = formatCpuCell(summary);
-    row.appendChild(cpuCell);
+    for (const difficulty of DIFFICULTIES) {
+      const cell = document.createElement('td');
+      cell.textContent = formatCpuStatCell(summary.cpuByDifficulty[difficulty]);
+      row.appendChild(cell);
+    }
 
-    const onlineCell = document.createElement('td');
-    onlineCell.textContent = formatOnlineCell(summary);
-    row.appendChild(onlineCell);
+    const totalCell = document.createElement('td');
+    totalCell.className = 'history-table__total';
+    totalCell.textContent = formatCpuStatCell(sumDifficultyStats(summary));
+    row.appendChild(totalCell);
+
+    appendOnlineCells(row, summary);
 
     tbody.appendChild(row);
   }
