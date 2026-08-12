@@ -7,8 +7,8 @@
 ## 1. アーキテクチャ方針
 
 - **構成方式**: Vite の Multi-Page Application（MPA）構成。ポータルトップの`index.html`はルート直下、各ゲームのエントリHTML（`pages/gomoku.html`等）は`pages/`配下にまとめて配置し、計7エントリを `vite.config.ts` の `build.rollupOptions.input` に登録している。SPAルーティングを使わないことで、ゲームごとに必要なJSのみを読み込む軽量な構成にしている。各HTML内の`<link>`/`<script>`はいずれも`/src/...`という絶対パスで参照しており、HTMLファイル自体の配置階層に依存しない。
-- **UI技術**: フレームワーク不使用のVanilla TypeScript。DOM操作は素の `document.createElement` 等で行う。依存を最小限にし、GitHub Pagesでの静的配信・軽量なゲームUIとの相性を優先した。
-- **base path**: GitHub Pagesのプロジェクトサイト配信（`https://ysk423.github.io/board-game-farm/`）に合わせ、`vite.config.ts` で `base: '/board-game-farm/'` を設定している。
+- **UI技術**: フレームワーク不使用のVanilla TypeScript。DOM操作は素の `document.createElement` 等で行う。依存を最小限にし、Cloudflare Pagesでの静的配信・軽量なゲームUIとの相性を優先した。
+- **base path**: Cloudflare Pagesはカスタムドメイン/`*.pages.dev`ともにルート配信のため、`vite.config.ts` で `base: '/'` を設定している。
 
 ## 2. ディレクトリ構成
 
@@ -30,7 +30,6 @@
 ├─ package.json
 ├─ firestore.rules            # Firestoreセキュリティルール（ゲームごとのroomコレクション＋playRecords）
 ├─ firestore.indexes.json     # 複合インデックス定義
-├─ .github/workflows/deploy.yml   # main push時にGitHub Pagesへ自動デプロイ
 ├─ Docs/                      # 本ドキュメント一式
 ├─ src/
 │  ├─ types/
@@ -456,10 +455,9 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 
 ## 12. ビルド・デプロイ構成
 
-- `vite.config.ts`: `base: '/board-game-farm/'`、9エントリ（ポータルトップ＋ゲーム7種＋プレイ記録ページ）のMulti-Page構成。
-- `.github/workflows/deploy.yml`: `main`ブランチへのpushをトリガーに、`npm ci` → `npm run build` → `actions/upload-pages-artifact` → `actions/deploy-pages` を実行。GitHub Pages側の設定（Settings → Pages → Source: GitHub Actions）は運用開始時に手動で1回設定済み。
-- ブランチへのpushや Pull Request 作成だけではワークフローは実行されない（`main`へのpushのみがトリガー）。
-- `firestore.rules`はGitHub Actionsのデプロイ対象に含まれない（ビルド成果物はGitHub Pagesへの静的ファイルのみ）。ルールを変更した場合は`npx firebase deploy --only firestore:rules`を手動実行してFirebase側へ反映する必要がある（10章参照）。ローカルの`firestore.rules`を編集しただけでは本番のFirestoreには反映されない点に注意。
+- `vite.config.ts`: `base: '/'`、9エントリ（ポータルトップ＋ゲーム7種＋プレイ記録ページ）のMulti-Page構成。
+- デプロイはCloudflare Pagesのgit連携を使用。`main`ブランチへのpushをCloudflare側が検知し、Build command: `npm run build` / Output directory: `dist` で自動ビルド・デプロイする。GitHub Actionsのworkflowは使用しない（Cloudflareダッシュボード側でのリポジトリ連携・GitHub App認可はユーザーが手動で1回設定する必要がある）。
+- `firestore.rules`はCloudflare Pagesのデプロイ対象に含まれない（ビルド成果物はCloudflare Pagesへの静的ファイルのみ）。ルールを変更した場合は`npx firebase deploy --only firestore:rules`を手動実行してFirebase側へ反映する必要がある（10章参照）。ローカルの`firestore.rules`を編集しただけでは本番のFirestoreには反映されない点に注意。
 
 ## 13. 今後の拡張ポイント（Phase 3向けメモ）
 

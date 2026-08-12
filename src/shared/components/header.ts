@@ -9,7 +9,7 @@ export function renderHeader({ gameTitle }: HeaderOptions): HTMLElement {
   header.className = 'site-header';
 
   // ゲームのHTMLは pages/ 配下にあり階層が異なるため、相対パスではなく
-  // Viteのbase設定（'/board-game-farm/'）から解決されるポータルトップの絶対パスを使う
+  // Viteのbase設定（'/'）から解決されるポータルトップの絶対パスを使う
   const portalTopUrl = import.meta.env.BASE_URL;
 
   const brand = document.createElement('a');
