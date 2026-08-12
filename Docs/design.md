@@ -456,7 +456,9 @@ Vitestでロジック層（`logic/*.ts`）のみを対象にユニットテス�
 ## 12. ビルド・デプロイ構成
 
 - `vite.config.ts`: `base: '/'`、9エントリ（ポータルトップ＋ゲーム7種＋プレイ記録ページ）のMulti-Page構成。
-- デプロイはCloudflare Pagesのgit連携を使用。`main`ブランチへのpushをCloudflare側が検知し、Build command: `npm run build` / Output directory: `dist` で自動ビルド・デプロイする。GitHub Actionsのworkflowは使用しない（Cloudflareダッシュボード側でのリポジトリ連携・GitHub App認可はユーザーが手動で1回設定する必要がある）。
+- デプロイはCloudflare Pagesのgit連携を使用。`main`ブランチへのpushをCloudflare側が検知し、Build command: `npm run build` / Output directory: `dist` / 環境変数 `NODE_VERSION=20` で自動ビルド・デプロイする（本番URL: `https://board-game-farm.pages.dev`）。GitHub Actionsのworkflowは使用しない。Cloudflareダッシュボード側のGitHub App連携は`board-game-farm`リポジトリのみにアクセスを絞って設定済み（最小権限）。
+- `main`以外のブランチへのpushはPreview環境としてデプロイされ、コミットごとに個別URL（`https://<hash>.board-game-farm.pages.dev`）が発行される。本番ドメインは`main`ブランチの最新デプロイのみを指す。
+- 旧ホスティングのGitHub Pages（`https://ysk423.github.io/board-game-farm/`）はリポジトリのSettings → PagesからUnpublish済み。ビルド用workflow（`.github/workflows/deploy.yml`）も削除済みのため再公開されることはない。
 - `firestore.rules`はCloudflare Pagesのデプロイ対象に含まれない（ビルド成果物はCloudflare Pagesへの静的ファイルのみ）。ルールを変更した場合は`npx firebase deploy --only firestore:rules`を手動実行してFirebase側へ反映する必要がある（10章参照）。ローカルの`firestore.rules`を編集しただけでは本番のFirestoreには反映されない点に注意。
 
 ## 13. 今後の拡張ポイント（Phase 3向けメモ）
