@@ -247,7 +247,7 @@ function main() {
   const hero = document.createElement('div');
   hero.className = 'portal-hero';
   hero.innerHTML = `
-    <h1 class="portal-hero__title">遊びたいゲームを選んでください</h1>
+    <h1 class="portal-hero__title">遊びたいゲームを選んでください！</h1>
     <a class="portal-hero__link" href="./pages/history.html">プレイ記録を見る →</a>
   `;
   container.appendChild(hero);
