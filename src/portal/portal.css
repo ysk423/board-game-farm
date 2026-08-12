@@ -120,3 +120,48 @@
   font-weight: 600;
   font-size: 12px;
 }
+
+.history-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* サマリ表: CPU対戦（弱/中/強/Total）とオンライン対戦（先手/後手）をグループ見出しで分ける */
+.history-table__group {
+  text-align: center;
+}
+
+.history-table__group--online {
+  color: var(--color-accent-online);
+}
+
+.history-table__col-divider {
+  border-left: 1px solid var(--color-border);
+}
+
+.history-table__total {
+  font-weight: 700;
+}
+
+.history-table__win {
+  font-weight: 600;
+}
+
+.history-table__win--sente {
+  color: var(--color-success);
+}
+
+/* オンライン対戦「後手」列専用の色。既存アクセントカラーと衝突しない寒色を採用 */
+.history-table__win--gote {
+  color: #7dd3fc;
+}
+
+.history-table__draw-note {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.history-table__empty {
+  text-align: center;
+  color: var(--color-text-muted);
+}
