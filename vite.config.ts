@@ -1,9 +1,9 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
-// GitHub Pages（プロジェクトサイト）配信を想定したbase pathとMulti-Page構成
+// Cloudflare Pages（ルート配信）を想定したbase pathとMulti-Page構成
 export default defineConfig({
-  base: '/board-game-farm/',
+  base: '/',
   build: {
     rollupOptions: {
       input: {

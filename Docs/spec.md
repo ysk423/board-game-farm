@@ -12,8 +12,8 @@
 |---|---|
 | サイト名 | 仮称: ボードゲームファーム（正式名称は未確定） |
 | リポジトリ | `git@github-personal:ysk423/board-game-farm.git`（GitHub: `ysk423/board-game-farm`） |
-| ホスティング | GitHub Pages（`https://ysk423.github.io/board-game-farm/`） |
-| デプロイ方式 | GitHub Actions（`main`ブランチへのpushで自動ビルド・デプロイ。手動設定は不要） |
+| ホスティング | Cloudflare Pages（`*.pages.dev`のURLで運用） |
+| デプロイ方式 | Cloudflare Pagesのgit連携（`main`ブランチへのpushで自動ビルド・デプロイ。手動設定は不要） |
 | バックエンド | Firebase Firestore（プロジェクト: `board-game-farm`）。オンライン対戦を持つ6ゲームで使用（コレクションは`games`/`shogiGames`/`tictactoeGames`/`otrioGames`/`yonmokuGames`/`gobbletGames`にゲームごと分離）＋全ゲーム横断の`playRecords`コレクション（プレイ記録ページ用）。CPU対戦単体はバックエンド不要 |
 | 技術スタック | TypeScript + Vite（フレームワーク不使用のVanilla TypeScript） |
 | 構成方式 | Multi-Page Application（ポータルトップは`index.html`、各ゲームは`pages/`配下に配置: `pages/gomoku.html` / `pages/gogo-shogi.html` / `pages/tictactoe.html` / `pages/otrio.html` / `pages/yonmoku.html` / `pages/gobblet.html` / `pages/stonepush.html`。全ゲーム横断のプレイ記録ページ`pages/history.html`も同構成） |
@@ -207,10 +207,10 @@
 - **Phase 3（新規ゲーム追加）**: 〇×ゲーム・オートリオ・四目並べ・ゴブレット・ゴブラーズ・ストーンプッシュを追加済み（7章・8章・9章・10章・11章参照）。さらなる追加は都度検討。
 - **サイトの正式名称**: 仮称「ボードゲームファーム」のまま未確定。
 - **五五将棋の持将棋判定**: 実装しない方針で確定（要求仕様書どおり）。
-- **カスタムドメイン**: 現状 `https://ysk423.github.io/board-game-farm/` のまま運用する方針で確定（独自ドメイン等への変更は行わない）。
+- **カスタムドメイン**: 現状 `*.pages.dev` のURLのまま運用する方針で確定（独自ドメイン等への変更は行わない）。GitHub Pages（`https://ysk423.github.io/board-game-farm/`）からCloudflare Pagesへ移行済み。
 
 ## 14. デプロイ・運用
 
-- `main`ブランチへのpushで `.github/workflows/deploy.yml` が自動実行され、GitHub Pagesへデプロイされる。
-- GitHub Pages側の初回設定（Settings → Pages → Source を「GitHub Actions」に設定）は完了済み。
-- ブランチを切って作業しても、`main`にマージ（push）されるまでActionsは実行されない。
+- `main`ブランチへのpushをCloudflare Pages側が検知し、自動ビルド・デプロイする（GitHub Actionsは使用しない）。
+- Cloudflareダッシュボード側でのリポジトリ連携・ビルド設定（Build command: `npm run build` / Output directory: `dist`）が別途必要（ユーザー自身の手動設定、詳細は`Docs/design.md`参照）。
+- ブランチを切って作業しても、`main`にマージ（push）されるまでデプロイは実行されない。

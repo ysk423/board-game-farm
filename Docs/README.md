@@ -14,4 +14,4 @@ npm install
 npm run dev
 ```
 
-起動後、`http://localhost:5173/board-game-farm/` を開く。
+起動後、`http://localhost:5173/` を開く。
